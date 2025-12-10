@@ -8,8 +8,6 @@ import { Sponsors } from '@/components/blocks/Sponsors'
 const LandingPage = () => {
   return (
     <div className='overflow-y-hidden'>
-        {/* <h1>LandingPage</h1>
-        <Button>Click Me!</Button> */}
         <Hero />
         <Sponsors />
         <About />

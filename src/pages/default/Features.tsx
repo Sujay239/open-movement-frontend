@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { Link } from "react-router";
 
 // Register GSAP Plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -311,12 +312,14 @@ const Features = () => {
             >
               Get an Access Code
             </Button>
-            <Button
+           <Link to="/pricing">
+             <Button
               size="lg"
               className="bg-primary-foreground/10 hover:bg-primary-foreground/20 border-primary-foreground/20 border cursor-pointer hover:scale-110 transition-transform duration-200"
             >
               View Pricing Plans
             </Button>
+           </Link>
           </div>
         </div>
       </section>

@@ -9,6 +9,7 @@ import {
 import PublicLayout from "@/layouts/PublicLayout";
 import LoginForm from "@/pages/default/Login";
 import RegisterForm from "@/pages/default/Register";
+import PricingSection from "@/components/ui/PricingSection";
 
 /**
  * Convert defaultRoutes (AppRoute[]) into RouteObject[] children for PublicLayout.
@@ -52,11 +53,16 @@ const registerRoute: RouteObject = {
   element: <RegisterForm />,
 };
 
+const pricingRoute: RouteObject = {
+  path: "/pricing",
+  element: <PricingSection />
+};
+
 // If you have other top-level AppRoute areas (admin, teacher, etc.), convert them with generateRouterConfig
 // const otherRoutes = generateRouterConfig(otherAppRoutes); // returns RouteObject[]
 // const routerConfig = [publicRoute, ...otherRoutes];
 
-const routerConfig: RouteObject[] = [publicRoute, loginRoute, registerRoute];
+const routerConfig: RouteObject[] = [publicRoute, loginRoute, registerRoute, pricingRoute];
 
 export const appRouter = createBrowserRouter(routerConfig);
 export default appRouter;
