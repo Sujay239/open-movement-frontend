@@ -11,7 +11,7 @@ const PublicLayout = ({ routes }: PublicLayoutProps) => {
     <div className="min-h-screen flex flex-col">
         <DefaultNavbar routes={routes} />
 
-        <main className="flex-1 container mx-auto px-4 py-8">
+        <main className="flex-1 container mx-auto px-4 overflow-x-hidden">
             <Outlet />
         </main>
 

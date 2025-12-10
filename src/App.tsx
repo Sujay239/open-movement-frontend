@@ -8,7 +8,7 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <RouterProvider router={appRouter} />
+      <RouterProvider router={appRouter}/>
     </ThemeProvider>
   )
 }

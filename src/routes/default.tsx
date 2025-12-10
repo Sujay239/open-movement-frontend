@@ -4,74 +4,61 @@ import LandingPage from "@/pages/default/LandingPage";
 import Features from "@/pages/default/Features";
 import TermsAndConditions from "@/pages/default/TermsAndConditions";
 import PrivacyPolicy from "@/pages/default/PrivacyPolicy";
-import Register from "@/pages/default/Register";
 import NotFoundPage from "@/pages/default/NotFoundPage";
 import ContactUs from "@/pages/default/ContactUs";
 
 export const defaultRoutes: AppRoute[] = [
+  {
+    path: "/",
+    element: (
+      <Suspense>
+        <LandingPage />
+      </Suspense>
+    ),
+  },
 
-    {
-        path: '/',
-        element: (
-            <Suspense>
-                <LandingPage />
-            </Suspense>
-        )
-    },
+  {
+    path: "/features",
+    element: (
+      <Suspense>
+        <Features />
+      </Suspense>
+    ),
+  },
 
-    {
-        path: '/features',
-        element: (
-            <Suspense>
-                <Features />
-            </Suspense>
-        )
-    },
+  {
+    path: "/terms-conditions",
+    element: (
+      <Suspense>
+        <TermsAndConditions />
+      </Suspense>
+    ),
+  },
 
-    {
-        path: '/terms-conditions',
-        element: (
-            <Suspense>
-                <TermsAndConditions />
-            </Suspense>
-        )
-    },
-    
-    {
-        path: '/privacy-policy',
-        element: (
-            <Suspense>
-                <PrivacyPolicy />
-            </Suspense>
-        )
-    },
+  {
+    path: "/privacy-policy",
+    element: (
+      <Suspense>
+        <PrivacyPolicy />
+      </Suspense>
+    ),
+  },
 
-    {
-        path: '/register',
-        element: (
-            <Suspense>
-                <Register />
-            </Suspense>
-        )
-    },
+  {
+    path: "/contact-us",
+    element: (
+      <Suspense>
+        <ContactUs />
+      </Suspense>
+    ),
+  },
 
-    {
-        path: '/contact-us',
-        element: (
-            <Suspense>
-                <ContactUs />
-            </Suspense>
-        )
-    },
-    
-    {
-        path: '*',
-        element: (
-            <Suspense>
-                <NotFoundPage />
-            </Suspense>
-        )
-    },
-
-
-]
+  {
+    path: "*",
+    element: (
+      <Suspense>
+        <NotFoundPage />
+      </Suspense>
+    ),
+  },
+];

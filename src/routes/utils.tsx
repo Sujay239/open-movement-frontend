@@ -131,7 +131,7 @@ export const generateNavbarMenu = (appRoutes: AppRoute[], appUrl: string): Navba
     }
 
     return navbarMenu
-  
+
 }
 
 /**
@@ -155,5 +155,5 @@ export const normalizePath = (path: string): string => {
 }
 
 export const createHashedLink = (...path: string[]): string => {
-    return `/#/${path.map(normalizePath).join('/')}`
+    return `/${path.map(normalizePath).join('/')}`
 }

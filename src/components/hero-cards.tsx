@@ -9,13 +9,17 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Mail, Linkedin, Lightbulb, Globe  } from "lucide-react";
+import { Mail, Linkedin, Lightbulb, Globe } from "lucide-react";
+import { Link } from "react-router";
 
 export const HeroCards = () => {
   return (
-    <div className="hidden lg:flex flex-row flex-wrap gap-8 relative w-[700px] h-[500px]">
-      {/* Testimonial */}
-      <Card className="absolute gap-2 w-[340px] -top-[15px] drop-shadow-xl shadow-black/10 dark:shadow-white/10">
+    // CHANGE: 'lg:block' -> 'xl:block'.
+    // This container stays flex-col (stacked) until 1280px width.
+    <div className="flex flex-col xl:block gap-8 relative w-full xl:w-[700px] h-auto xl:h-[500px] mx-2.5">
+      {/* Testimonial Card */}
+      {/* CHANGE: 'lg:absolute' -> 'xl:absolute' */}
+      <Card className="xl:absolute w-full xl:w-[340px] xl:-top-[15px] drop-shadow-xl shadow-black/10 dark:shadow-white/10 mb-4 xl:mb-0">
         <CardHeader className="flex flex-row items-center gap-4 pb-2">
           <Avatar>
             <AvatarImage
@@ -27,29 +31,39 @@ export const HeroCards = () => {
 
           <div className="flex flex-col">
             <CardTitle className="text-lg">Maria Lopez</CardTitle>
-            <CardDescription>Head of Hiring, Lincoln High School</CardDescription>
+            <CardDescription>
+              Head of Hiring, Lincoln High School
+            </CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent className="text-sm">“School Access helped our team find and contact qualified teachers by subject and experience in days. The candidate categories and instant-contact flow saved us hours during recruitment.”</CardContent>
+        <CardContent className="text-sm">
+          “School Access helped our team find and contact qualified teachers by
+          subject and experience in days. The candidate categories and
+          instant-contact flow saved us hours during recruitment.”
+        </CardContent>
       </Card>
 
-      {/* Team */}
-      <Card className="absolute gap-2 right-5 top-4 w-80 flex flex-col justify-center items-center drop-shadow-xl shadow-black/10 dark:shadow-white/10">
+      {/* Team Card */}
+      <Card className="xl:absolute xl:right-5 xl:top-4 w-full xl:w-80 flex flex-col justify-center items-center drop-shadow-xl shadow-black/10 dark:shadow-white/10 mb-4 xl:mb-0 mag-lg:mt-4">
         <CardHeader className="mt-8 flex flex-col justify-center items-center pb-2">
           <img
             src="https://i.pravatar.cc/150?img=47"
             alt="Profile photo of Ananya Kapoor"
             className="absolute grayscale-0 -top-12 rounded-full w-24 h-24 aspect-square object-cover"
           />
-          <CardTitle className="text-center text-nowrap">Ananya Kapoor</CardTitle>
+          <CardTitle className="text-center text-nowrap">
+            Ananya Kapoor
+          </CardTitle>
           <CardDescription className="font-normal text-primary text-nowrap">
             Head of School Partnerships
           </CardDescription>
         </CardHeader>
 
         <CardContent className="text-center text-sm pb-2">
-           I connect schools with qualified teachers by subject, experience and location — simplifying the hiring workflow so administrators can fill positions faster.
+          I connect schools with qualified teachers by subject, experience and
+          location — simplifying the hiring workflow so administrators can fill
+          positions faster.
         </CardContent>
 
         <CardFooter>
@@ -66,7 +80,7 @@ export const HeroCards = () => {
               <span className="sr-only">Mail icon</span>
               <Mail className="w-5 h-5" />
             </a>
-            
+
             <a
               rel="noreferrer noopener"
               href="https://www.linkedin.com/in/ananya-kapoor"
@@ -96,15 +110,12 @@ export const HeroCards = () => {
         </CardFooter>
       </Card>
 
-      {/* Pricing */}
-      <Card className="absolute top-56 left-[50px] w-72  drop-shadow-xl shadow-black/10 dark:shadow-white/10">
+      {/* Pricing Card */}
+      <Card className="xl:absolute xl:top-56 xl:left-[50px] w-full xl:w-72 drop-shadow-xl shadow-black/10 dark:shadow-white/10 mb-4 xl:mb-0">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <p>Recruiter Plan</p>
-            <Badge
-              variant="secondary"
-              className="text-sm text-primary"
-            >
+            <Badge variant="secondary" className="text-sm text-primary">
               Most popular
             </Badge>
           </CardTitle>
@@ -114,18 +125,20 @@ export const HeroCards = () => {
           </div>
 
           <CardDescription className="text-primary">
-            Find, contact and shortlist qualified teachers by subject, experience and location — powered by Open Movements.
+            Find, contact and shortlist qualified teachers by subject,
+            experience and location — powered by Open Movements.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          <Button className="w-full">Start a 24 hour Free Trial</Button>
+          <Button className="w-full cursor-pointer hover:scale-110 transition-transform duration-300">
+            <Link to="/login">Start a 24 hour Free Trial</Link>
+          </Button>
         </CardContent>
-
       </Card>
 
-      {/* Service */}
-      <Card className="absolute w-[350px] -right-2.5 bottom-11 drop-shadow-xl shadow-black/10 dark:shadow-white/10">
+      {/* Service Card */}
+      <Card className="xl:absolute w-full xl:w-[350px] xl:right-0 xl:bottom-6 drop-shadow-xl shadow-black/10 dark:shadow-white/10">
         <CardHeader className="space-y-1 flex md:flex-row justify-start items-start gap-4">
           <div className="mt-1 bg-primary/20 p-1 rounded-2xl">
             <Lightbulb />
@@ -133,7 +146,8 @@ export const HeroCards = () => {
           <div>
             <CardTitle>Smart matching & filters</CardTitle>
             <CardDescription className="text-md mt-2">
-              Find qualified teachers fast — filter by subject, experience, qualifications and location.
+              Find qualified teachers fast — filter by subject, experience,
+              qualifications and location.
             </CardDescription>
           </div>
         </CardHeader>

@@ -1,12 +1,14 @@
-import { createHashRouter } from "react-router";
+import {  createBrowserRouter } from "react-router";
 import type { RouteObject } from "react-router";
 
 import { defaultRoutes } from "./default";
-import { 
-    normalizePath, 
+import {
+    normalizePath,
     // generateRouterConfig
  } from "./utils";
 import PublicLayout from "@/layouts/PublicLayout";
+import LoginForm from "@/pages/default/Login";
+import RegisterForm from "@/pages/default/Register";
 
 /**
  * Convert defaultRoutes (AppRoute[]) into RouteObject[] children for PublicLayout.
@@ -35,15 +37,26 @@ if (notFound) {
 // Parent route using PublicLayout which will render DefaultNavbar and Outlet
 const publicRoute: RouteObject = {
   path: "/",
-  element: <PublicLayout routes={defaultRoutes} />,
+  element: <PublicLayout routes={defaultRoutes}/>,
   children: publicChildren,
+};
+
+
+const loginRoute: RouteObject = {
+  path: "/login",
+  element: <LoginForm />
+};
+
+const registerRoute: RouteObject = {
+  path: "/register",
+  element: <RegisterForm />,
 };
 
 // If you have other top-level AppRoute areas (admin, teacher, etc.), convert them with generateRouterConfig
 // const otherRoutes = generateRouterConfig(otherAppRoutes); // returns RouteObject[]
 // const routerConfig = [publicRoute, ...otherRoutes];
 
-const routerConfig: RouteObject[] = [publicRoute];
+const routerConfig: RouteObject[] = [publicRoute, loginRoute, registerRoute];
 
-export const appRouter = createHashRouter(routerConfig);
+export const appRouter = createBrowserRouter(routerConfig);
 export default appRouter;

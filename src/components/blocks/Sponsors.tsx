@@ -26,7 +26,7 @@ const sponsors: SponsorProps[] = [
 
 export const Sponsors: React.FC = () => {
   return (
-    <section id="sponsors" className="container pt-24 sm:py-32">
+    <section id="sponsors" className="container pt-24 sm:py-32 ">
       <h2 className="text-center text-md lg:text-xl font-bold mb-10 text-primary">
         Investors and founders
       </h2>
@@ -40,7 +40,7 @@ export const Sponsors: React.FC = () => {
           >
             {/* Render the icon component */}
             <Icon className="w-6 h-6" aria-hidden="true" />
-            <h3 className="text-xl font-bold">{name}</h3>
+            <h3 className="lg:text-xl text-xs font-bold">{name}</h3>
           </div>
         ))}
       </div>
