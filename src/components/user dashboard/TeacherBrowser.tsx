@@ -1,0 +1,469 @@
+// TeacherBrowser.tsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import {
+  Search,
+  SlidersHorizontal,
+  MapPin,
+  Briefcase,
+  FileText,
+  ArrowRight,
+  User,
+  GraduationCap,
+} from "lucide-react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import iso3166_2 from "iso-3166-2.json";
+
+const BASE_URL = import.meta.env?.VITE_BASE_URL ?? "";
+
+// initial mock teachers (kept outside component so it doesn't recreate each render)
+const INITIAL_TEACHERS : any[] = [];
+
+export default function TeacherBrowser() {
+  const container = useRef<HTMLDivElement | null>(null);
+
+  // component state
+  const [teachers, setTeachers] =
+    useState<typeof INITIAL_TEACHERS>(INITIAL_TEACHERS);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState<string>("");
+
+  // compute country names once (synchronous)
+  const COUNTRY_NAMES = useMemo(() => {
+    const names: string[] = [];
+    for (const code in iso3166_2) {
+      const country = iso3166_2[code as keyof typeof iso3166_2];
+      if (country?.name) names.push(country.name);
+    }
+    return names.sort();
+  }, []);
+
+  // GSAP animation hook (scoped to container)
+  useGSAP(
+    () => {
+      gsap.fromTo(
+        ".teacher-card",
+        { y: 30, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.6,
+          stagger: 0.1,
+          ease: "power2.out",
+          delay: 0.2,
+        }
+      );
+    },
+    { scope: container }
+  );
+
+  // fetch remote teachers and append to local list
+  useEffect(() => {
+    let mounted = true;
+    async function loadTeachers() {
+      if (!BASE_URL) return; // nothing to fetch if base url missing
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${BASE_URL}/portal/teachers`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`Server responded ${res.status}: ${text}`);
+        }
+
+        const data = await res.json();
+
+        if (!mounted) return;
+
+        if (Array.isArray(data)) {
+          // normalize remote items into the same shape as INITIAL_TEACHERS
+          const mapped = data.map((teacher: any) => ({
+            id: teacher.id,
+            code:
+              teacher.teacher_code ??
+              `remote-${Math.random().toString(36).slice(2, 9)}`,
+            subject:
+              teacher.highest_qualification ?? teacher.subject ?? "Unknown",
+            level: teacher.level ?? "Senior",
+            exp: teacher.years_experience
+              ? `${teacher.years_experience} Years`
+              : "N/A",
+            location: teacher.current_country ?? teacher.location ?? "Unknown",
+            visa: teacher.visa_status ?? "Unknown",
+            bio: teacher.bio ?? "No bio available.",
+          }));
+
+          // append while avoiding duplicates (based on id)
+          setTeachers((prev) => {
+            const existingIds = new Set(prev.map((t) => t.id));
+            const toAdd = mapped.filter((m) => !existingIds.has(m.id));
+            return [...prev, ...toAdd];
+          });
+        } else if (data?.data && Array.isArray(data.data)) {
+          // handle API wrappers { data: [...] }
+          const mapped = data.data.map((teacher: any) => ({
+            id:
+              teacher.teacher_code ??
+              `remote-${Math.random().toString(36).slice(2, 9)}`,
+            subject:
+              teacher.highest_qualification ?? teacher.subject ?? "Unknown",
+            level: teacher.level ?? "Senior",
+            exp: teacher.years_experience
+              ? `${teacher.years_experience} Years`
+              : "N/A",
+            location: teacher.current_country ?? teacher.location ?? "Unknown",
+            visa: teacher.visa_status ?? "Unknown",
+            bio: teacher.bio ?? "No bio available.",
+          }));
+
+          setTeachers((prev) => {
+            const existingIds = new Set(prev.map((t) => t.id));
+            const toAdd = mapped.filter((m: any) => !existingIds.has(m.id));
+            return [...prev, ...toAdd];
+          });
+        } else {
+          // unexpected shape
+          console.warn("Unexpected teacher API response shape", data);
+        }
+      } catch (err: any) {
+        console.error("Failed to load teachers", err);
+        if (mounted) setError(err.message ?? "Failed to load teachers");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    // call fetch only if BASE_URL is present
+    loadTeachers();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // simple UI filter
+  const filtered = teachers.filter(
+    (t) =>
+      t.subject.toLowerCase().includes(query.toLowerCase()) ||
+      (t.location ?? "").toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div ref={container} className="space-y-8">
+      {/* Header & Filters */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-end md:items-center bg-white dark:bg-zinc-900/50 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">
+        <div className="w-full md:w-96 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by subject or location..."
+            className="pl-9 bg-slate-50 dark:bg-black/20 border-slate-200 dark:border-white/10"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+          <Select>
+            <SelectTrigger className="w-[140px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-white/10 cursor-pointer">
+              <SelectValue placeholder="Department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="primary" className="cursor-pointer">
+                Primary
+              </SelectItem>
+              <SelectItem value="secondary" className="cursor-pointer">
+                Secondary
+              </SelectItem>
+              <SelectItem value="highSecondary" className="cursor-pointer">
+                Higher Secondary
+              </SelectItem>
+              <SelectItem value="leadership" className="cursor-pointer">
+                Leadership
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select>
+            <SelectTrigger className="w-[140px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-white/10 cursor-pointer">
+              <SelectValue placeholder="Location" />
+            </SelectTrigger>
+            <SelectContent>
+              {COUNTRY_NAMES.map((country) => (
+                <SelectItem
+                  key={country}
+                  value={country}
+                  className="cursor-pointer"
+                >
+                  {country}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-900"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Loading / Error */}
+      {loading && (
+        <div className="text-sm text-slate-500">Loading teachers…</div>
+      )}
+      {error && <div className="text-sm text-red-600">Error: {error}</div>}
+
+      {/* Results Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {filtered.map((teacher) => (
+          <TeacherCard key={teacher.id} data={teacher} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* --- TEACHER CARD COMPONENT --- */
+function TeacherCard({ data }: { data: any }) {
+  function handleRequests(event: React.MouseEvent<HTMLButtonElement>): void {
+    event.preventDefault();
+    console.log("Request sent for:", data.id);
+  }
+
+  return (
+    <Dialog>
+      <Card className="teacher-card group relative overflow-hidden bg-white dark:bg-zinc-900/40 border border-slate-200 dark:border-white/10 backdrop-blur-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-500/10 flex flex-col h-full rounded-3xl">
+        <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+        <CardHeader className="pb-4 pt-6 px-6 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
+          <div className="flex items-start justify-between">
+            <div className="flex gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-white to-slate-100 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center border border-slate-200 dark:border-white/10 shadow-sm group-hover:scale-105 transition-transform duration-300">
+                <span className="text-2xl font-bold bg-linear-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  {String(data.subject ?? "U").charAt(0)}
+                </span>
+              </div>
+              <div className="space-y-1">
+                <Badge
+                  variant="secondary"
+                  className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-500 dark:text-zinc-400 px-2 py-0.5"
+                >
+                  {data.level}
+                </Badge>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                  {data.subject}
+                </h3>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-6 px-6 space-y-4 grow">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1 p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1">
+                <Briefcase className="w-3 h-3" /> Experience
+              </span>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                {data.exp}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> Location
+              </span>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                {data.location}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="pt-0 pb-6 px-6 gap-3">
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="flex-1 h-11 border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-medium rounded-xl transition-all cursor-pointer hover:scale-105"
+            >
+              View Profile
+            </Button>
+          </DialogTrigger>
+
+          <Button
+            onClick={handleRequests}
+            className="flex-1 h-11 bg-white text-white dark:text-slate-900 hover:text-white transition-all shadow-lg hover:shadow-blue-500/25 rounded-xl font-semibold cursor-pointer hover:scale-110 hover:bg-green-400"
+          >
+            Request Full Profile
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <DialogContent className="w-[95vw] sm:max-w-[600px] z-150 p-0 gap-0 bg-white dark:bg-zinc-950 border-0 shadow-2xl rounded-2xl sm:rounded-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="overflow-y-auto custom-scrollbar">
+          <div className="h-24 sm:h-32 bg-linear-to-r from-blue-600 via-purple-600 to-pink-600 relative shrink-0">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
+            <div className="absolute -bottom-8 left-6 sm:-bottom-10 sm:left-8">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white dark:bg-zinc-950 p-1.5 shadow-xl">
+                <div className="w-full h-full rounded-2xl bg-slate-50 dark:bg-zinc-900 flex items-center justify-center border border-slate-100 dark:border-white/10">
+                  <span className="text-3xl sm:text-4xl font-black bg-linear-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    {String(data.subject ?? "U").charAt(0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-5 sm:px-8 pt-12 sm:pt-14 pb-6 sm:pb-8">
+            <DialogHeader className="mb-6 sm:mb-8 text-left">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
+                <div>
+                  <DialogTitle className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-2 sm:gap-3">
+                    {data.subject} Teacher
+                  </DialogTitle>
+                  <DialogDescription className="text-sm sm:text-base text-slate-500 dark:text-zinc-400 mt-2 flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="secondary"
+                      className="rounded-md px-2 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-0"
+                    >
+                      {data.code}
+                    </Badge>
+                    <span className="hidden sm:inline">•</span>
+                    <span>{data.level} Level</span>
+                  </DialogDescription>
+                </div>
+
+                <div className="self-start flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full border border-green-100 dark:border-green-900/30">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  <span className="text-xs font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
+                    Available to Hire
+                  </span>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+              <DetailItem
+                icon={<Briefcase />}
+                label="Experience"
+                value={data.exp}
+              />
+              <DetailItem
+                icon={<MapPin />}
+                label="Current Location"
+                value={data.location}
+              />
+              <DetailItem
+                icon={<FileText />}
+                label="Visa Status"
+                value={data.visa}
+                highlight
+              />
+              <DetailItem
+                icon={<GraduationCap />}
+                label="Qualification"
+                value={data.subject}
+              />
+            </div>
+
+            <div className="bg-slate-50 dark:bg-white/5 p-5 sm:p-6 rounded-2xl border border-slate-100 dark:border-white/5 mb-6 sm:mb-8">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                <User className="w-4 h-4 text-purple-500" />
+                Candidate Summary
+              </h4>
+              <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed">
+                {data.bio}
+              </p>
+            </div>
+
+            <DialogFooter className="flex-col sm:flex-row gap-3">
+              <DialogClose asChild>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto h-12 rounded-xl border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 order-2 sm:order-1 cursor-pointer hover:scale-105 transition-transform"
+                >
+                  Close
+                </Button>
+              </DialogClose>
+
+              <Button className="w-full sm:w-auto h-12 rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/20 text-base font-semibold group order-1 sm:order-2 cursor-pointer hover:scale-105 transition-transform">
+                Request Full Profile
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </DialogFooter>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* Helper */
+function DetailItem({
+  icon,
+  label,
+  value,
+  highlight = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-white dark:bg-white/2 shadow-sm">
+      <div
+        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${highlight ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400" : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400"}`}
+      >
+        {React.cloneElement(icon as React.ReactElement, { size: 18 } as any)}
+      </div>
+      <div>
+        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-0.5">
+          {label}
+        </div>
+        <div className="font-semibold text-slate-900 dark:text-white text-sm">
+          {value}
+        </div>
+      </div>
+    </div>
+  );
+}
