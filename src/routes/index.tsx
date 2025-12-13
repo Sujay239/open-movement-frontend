@@ -11,6 +11,9 @@ import LoginForm from "@/pages/default/Login";
 import RegisterForm from "@/pages/default/Register";
 import PricingSection from "@/components/ui/PricingSection";
 import { schoolRoutes } from "./SchoolRoutes";
+import { adminRoutes } from "./AdminRoutes";
+import Unauthorized from "@/pages/default/Unauthorized";
+
 
 /**
  * Convert defaultRoutes (AppRoute[]) into RouteObject[] children for PublicLayout.
@@ -58,6 +61,11 @@ const pricingRoute: RouteObject = {
   element: <PricingSection />,
 };
 
+const unauthorized : RouteObject = {
+  path : "/unauthorized",
+  element : <Unauthorized />
+}
+
 
 // If you have other top-level AppRoute areas (admin, teacher, etc.), convert them with generateRouterConfig
 // const otherRoutes = generateRouterConfig(otherAppRoutes); // returns RouteObject[]
@@ -69,6 +77,8 @@ const routerConfig: RouteObject[] = [
   registerRoute,
   pricingRoute,
   schoolRoutes,
+  adminRoutes,
+  unauthorized
 ];
 
 export const appRouter = createBrowserRouter(routerConfig);

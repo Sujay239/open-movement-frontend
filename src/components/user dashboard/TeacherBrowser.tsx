@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAlert } from "../blocks/AlertProvider";
 import {
   Select,
   SelectContent,
@@ -42,8 +43,8 @@ import iso3166_2 from "iso-3166-2.json";
 
 const BASE_URL = import.meta.env?.VITE_BASE_URL ?? "";
 
-// initial mock teachers (kept outside component so it doesn't recreate each render)
-const INITIAL_TEACHERS : any[] = [];
+// initial mock teachers
+const INITIAL_TEACHERS: any[] = [];
 
 export default function TeacherBrowser() {
   const container = useRef<HTMLDivElement | null>(null);
@@ -52,10 +53,11 @@ export default function TeacherBrowser() {
   const [teachers, setTeachers] =
     useState<typeof INITIAL_TEACHERS>(INITIAL_TEACHERS);
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null);
+  const {showError } = useAlert();
   const [query, setQuery] = useState<string>("");
 
-  // compute country names once (synchronous)
+  // compute country names once
   const COUNTRY_NAMES = useMemo(() => {
     const names: string[] = [];
     for (const code in iso3166_2) {
@@ -65,7 +67,7 @@ export default function TeacherBrowser() {
     return names.sort();
   }, []);
 
-  // GSAP animation hook (scoped to container)
+  // GSAP animation
   useGSAP(
     () => {
       gsap.fromTo(
@@ -84,13 +86,12 @@ export default function TeacherBrowser() {
     { scope: container }
   );
 
-  // fetch remote teachers and append to local list
+  // fetch remote teachers
   useEffect(() => {
     let mounted = true;
     async function loadTeachers() {
-      if (!BASE_URL) return; // nothing to fetch if base url missing
+      if (!BASE_URL) return;
       setLoading(true);
-      setError(null);
       try {
         const res = await fetch(`${BASE_URL}/portal/teachers`, {
           method: "GET",
@@ -110,7 +111,6 @@ export default function TeacherBrowser() {
         if (!mounted) return;
 
         if (Array.isArray(data)) {
-          // normalize remote items into the same shape as INITIAL_TEACHERS
           const mapped = data.map((teacher: any) => ({
             id: teacher.id,
             code:
@@ -127,14 +127,12 @@ export default function TeacherBrowser() {
             bio: teacher.bio ?? "No bio available.",
           }));
 
-          // append while avoiding duplicates (based on id)
           setTeachers((prev) => {
             const existingIds = new Set(prev.map((t) => t.id));
             const toAdd = mapped.filter((m) => !existingIds.has(m.id));
             return [...prev, ...toAdd];
           });
         } else if (data?.data && Array.isArray(data.data)) {
-          // handle API wrappers { data: [...] }
           const mapped = data.data.map((teacher: any) => ({
             id:
               teacher.teacher_code ??
@@ -156,18 +154,16 @@ export default function TeacherBrowser() {
             return [...prev, ...toAdd];
           });
         } else {
-          // unexpected shape
           console.warn("Unexpected teacher API response shape", data);
         }
       } catch (err: any) {
         console.error("Failed to load teachers", err);
-        if (mounted) setError(err.message ?? "Failed to load teachers");
+        if (mounted) showError(err.message ?? "Failed to load teachers");
       } finally {
         if (mounted) setLoading(false);
       }
     }
 
-    // call fetch only if BASE_URL is present
     loadTeachers();
 
     return () => {
@@ -175,7 +171,6 @@ export default function TeacherBrowser() {
     };
   }, []);
 
-  // simple UI filter
   const filtered = teachers.filter(
     (t) =>
       t.subject.toLowerCase().includes(query.toLowerCase()) ||
@@ -248,7 +243,6 @@ export default function TeacherBrowser() {
       {loading && (
         <div className="text-sm text-slate-500">Loading teachers…</div>
       )}
-      {error && <div className="text-sm text-red-600">Error: {error}</div>}
 
       {/* Results Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -262,178 +256,264 @@ export default function TeacherBrowser() {
 
 /* --- TEACHER CARD COMPONENT --- */
 function TeacherCard({ data }: { data: any }) {
-  function handleRequests(event: React.MouseEvent<HTMLButtonElement>): void {
-    event.preventDefault();
-    console.log("Request sent for:", data.id);
+  // --- New States for Request Box ---
+  const [isRequestOpen, setIsRequestOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {showError,showSuccess} = useAlert();
+
+  // --- API Handler ---
+  async function confirmRequest() {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`${BASE_URL}/requests/teachers/${data.id}`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: message }),
+      });
+
+      if (res.ok) {
+        setIsRequestOpen(false);
+        setMessage("");
+        showSuccess("Request send sucessfully.");
+      } else {
+        const text = await res.text();
+        console.error("Failed to send request:", text);
+        showError("Failed to sent request. Try again.");
+      }
+    } catch (error) {
+      console.error("Error sending request:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
-    <Dialog>
-      <Card className="teacher-card group relative overflow-hidden bg-white dark:bg-zinc-900/40 border border-slate-200 dark:border-white/10 backdrop-blur-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-500/10 flex flex-col h-full rounded-3xl">
-        <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <>
+      {/* 1. Request Message Dialog (The popup box) */}
+      <Dialog open={isRequestOpen} onOpenChange={setIsRequestOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-white/10 z-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900 dark:text-white">
+              Request Connection
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-zinc-400">
+              Send a message to the {data.subject} teacher regarding your
+              requirements.
+            </DialogDescription>
+          </DialogHeader>
 
-        <CardHeader className="pb-4 pt-6 px-6 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
-          <div className="flex items-start justify-between">
-            <div className="flex gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-white to-slate-100 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center border border-slate-200 dark:border-white/10 shadow-sm group-hover:scale-105 transition-transform duration-300">
-                <span className="text-2xl font-bold bg-linear-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  {String(data.subject ?? "U").charAt(0)}
-                </span>
-              </div>
-              <div className="space-y-1">
-                <Badge
-                  variant="secondary"
-                  className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-500 dark:text-zinc-400 px-2 py-0.5"
-                >
-                  {data.level}
-                </Badge>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
-                  {data.subject}
-                </h3>
-              </div>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Input
+                id="message"
+                placeholder="Type your message here..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="col-span-3 bg-slate-50 dark:bg-black/20 border-slate-200 dark:border-white/10 h-24 text-start align-top pt-2"
+              />
             </div>
           </div>
-        </CardHeader>
 
-        <CardContent className="pt-6 px-6 space-y-4 grow">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1 p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1">
-                <Briefcase className="w-3 h-3" /> Experience
-              </span>
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {data.exp}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1 p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> Location
-              </span>
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
-                {data.location}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-
-        <CardFooter className="pt-0 pb-6 px-6 gap-3">
-          <DialogTrigger asChild>
+          <DialogFooter className="flex-row gap-2 justify-end">
             <Button
               variant="outline"
-              className="flex-1 h-11 border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-medium rounded-xl transition-all cursor-pointer hover:scale-105"
+              onClick={() => setIsRequestOpen(false)}
+              className="border-slate-200 dark:border-white/10"
             >
-              View Profile
+              Close
             </Button>
-          </DialogTrigger>
+            <Button
+              onClick={confirmRequest}
+              disabled={isSubmitting || !message.trim()}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isSubmitting ? "Sending..." : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <Button
-            onClick={handleRequests}
-            className="flex-1 h-11 bg-white text-white dark:text-slate-900 hover:text-white transition-all shadow-lg hover:shadow-blue-500/25 rounded-xl font-semibold cursor-pointer hover:scale-110 hover:bg-green-400"
-          >
-            Request Full Profile
-          </Button>
-        </CardFooter>
-      </Card>
+      {/* 2. Main Profile Dialog (Wraps the Card) */}
+      <Dialog>
+        <Card className="teacher-card group relative overflow-hidden bg-white dark:bg-zinc-900/40 border border-slate-200 dark:border-white/10 backdrop-blur-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-500/10 flex flex-col h-full rounded-3xl">
+          <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-      <DialogContent className="w-[95vw] sm:max-w-[600px] z-150 p-0 gap-0 bg-white dark:bg-zinc-950 border-0 shadow-2xl rounded-2xl sm:rounded-3xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="overflow-y-auto custom-scrollbar">
-          <div className="h-24 sm:h-32 bg-linear-to-r from-blue-600 via-purple-600 to-pink-600 relative shrink-0">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
-            <div className="absolute -bottom-8 left-6 sm:-bottom-10 sm:left-8">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white dark:bg-zinc-950 p-1.5 shadow-xl">
-                <div className="w-full h-full rounded-2xl bg-slate-50 dark:bg-zinc-900 flex items-center justify-center border border-slate-100 dark:border-white/10">
-                  <span className="text-3xl sm:text-4xl font-black bg-linear-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <CardHeader className="pb-4 pt-6 px-6 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
+            <div className="flex items-start justify-between">
+              <div className="flex gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-white to-slate-100 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center border border-slate-200 dark:border-white/10 shadow-sm group-hover:scale-105 transition-transform duration-300">
+                  <span className="text-2xl font-bold bg-linear-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {String(data.subject ?? "U").charAt(0)}
                   </span>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-5 sm:px-8 pt-12 sm:pt-14 pb-6 sm:pb-8">
-            <DialogHeader className="mb-6 sm:mb-8 text-left">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
-                <div>
-                  <DialogTitle className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-2 sm:gap-3">
-                    {data.subject} Teacher
-                  </DialogTitle>
-                  <DialogDescription className="text-sm sm:text-base text-slate-500 dark:text-zinc-400 mt-2 flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className="rounded-md px-2 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-0"
-                    >
-                      {data.code}
-                    </Badge>
-                    <span className="hidden sm:inline">•</span>
-                    <span>{data.level} Level</span>
-                  </DialogDescription>
-                </div>
-
-                <div className="self-start flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full border border-green-100 dark:border-green-900/30">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </span>
-                  <span className="text-xs font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
-                    Available to Hire
-                  </span>
+                <div className="space-y-1">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-500 dark:text-zinc-400 px-2 py-0.5"
+                  >
+                    {data.level}
+                  </Badge>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                    {data.subject}
+                  </h3>
                 </div>
               </div>
-            </DialogHeader>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
-              <DetailItem
-                icon={<Briefcase />}
-                label="Experience"
-                value={data.exp}
-              />
-              <DetailItem
-                icon={<MapPin />}
-                label="Current Location"
-                value={data.location}
-              />
-              <DetailItem
-                icon={<FileText />}
-                label="Visa Status"
-                value={data.visa}
-                highlight
-              />
-              <DetailItem
-                icon={<GraduationCap />}
-                label="Qualification"
-                value={data.subject}
-              />
             </div>
+          </CardHeader>
 
-            <div className="bg-slate-50 dark:bg-white/5 p-5 sm:p-6 rounded-2xl border border-slate-100 dark:border-white/5 mb-6 sm:mb-8">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                <User className="w-4 h-4 text-purple-500" />
-                Candidate Summary
-              </h4>
-              <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed">
-                {data.bio}
-              </p>
+          <CardContent className="pt-6 px-6 space-y-4 grow">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1 p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1">
+                  <Briefcase className="w-3 h-3" /> Experience
+                </span>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {data.exp}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Location
+                </span>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                  {data.location}
+                </span>
+              </div>
             </div>
+          </CardContent>
 
-            <DialogFooter className="flex-col sm:flex-row gap-3">
-              <DialogClose asChild>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto h-12 rounded-xl border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 order-2 sm:order-1 cursor-pointer hover:scale-105 transition-transform"
-                >
-                  Close
-                </Button>
-              </DialogClose>
-
-              <Button className="w-full sm:w-auto h-12 rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/20 text-base font-semibold group order-1 sm:order-2 cursor-pointer hover:scale-105 transition-transform">
-                Request Full Profile
-                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+          <CardFooter className="pt-0 pb-6 px-6 gap-3">
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="flex-1 h-11 border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-medium rounded-xl transition-all cursor-pointer hover:scale-105"
+              >
+                View Profile
               </Button>
-            </DialogFooter>
+            </DialogTrigger>
+
+            {/* Button triggers the Request Dialog State */}
+            <Button
+              onClick={() => setIsRequestOpen(true)}
+              className="flex-1 h-11 bg-white text-white dark:text-slate-900 hover:text-white transition-all shadow-lg hover:shadow-blue-500/25 rounded-xl font-semibold cursor-pointer hover:scale-110 hover:bg-green-400"
+            >
+              Request Full Profile
+            </Button>
+          </CardFooter>
+        </Card>
+
+        {/* Detailed Profile View Content */}
+        <DialogContent className="w-[95vw] sm:max-w-[600px] z-150 p-0 gap-0 bg-white dark:bg-zinc-950 border-0 shadow-2xl rounded-2xl sm:rounded-3xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="overflow-y-auto custom-scrollbar">
+            <div className="h-24 sm:h-32 bg-linear-to-r from-blue-600 via-purple-600 to-pink-600 relative shrink-0">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
+              <div className="absolute -bottom-8 left-6 sm:-bottom-10 sm:left-8">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white dark:bg-zinc-950 p-1.5 shadow-xl">
+                  <div className="w-full h-full rounded-2xl bg-slate-50 dark:bg-zinc-900 flex items-center justify-center border border-slate-100 dark:border-white/10">
+                    <span className="text-3xl sm:text-4xl font-black bg-linear-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      {String(data.subject ?? "U").charAt(0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 sm:px-8 pt-12 sm:pt-14 pb-6 sm:pb-8">
+              <DialogHeader className="mb-6 sm:mb-8 text-left">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
+                  <div>
+                    <DialogTitle className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex flex-wrap items-center gap-2 sm:gap-3">
+                      {data.subject} Teacher
+                    </DialogTitle>
+                    <DialogDescription className="text-sm sm:text-base text-slate-500 dark:text-zinc-400 mt-2 flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="rounded-md px-2 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-0"
+                      >
+                        {data.code}
+                      </Badge>
+                      <span className="hidden sm:inline">•</span>
+                      <span>{data.level} Level</span>
+                    </DialogDescription>
+                  </div>
+
+                  <div className="self-start flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full border border-green-100 dark:border-green-900/30">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="text-xs font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
+                      Available to Hire
+                    </span>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <DetailItem
+                  icon={<Briefcase />}
+                  label="Experience"
+                  value={data.exp}
+                />
+                <DetailItem
+                  icon={<MapPin />}
+                  label="Current Location"
+                  value={data.location}
+                />
+                <DetailItem
+                  icon={<FileText />}
+                  label="Visa Status"
+                  value={data.visa}
+                  highlight
+                />
+                <DetailItem
+                  icon={<GraduationCap />}
+                  label="Qualification"
+                  value={data.subject}
+                />
+              </div>
+
+              <div className="bg-slate-50 dark:bg-white/5 p-5 sm:p-6 rounded-2xl border border-slate-100 dark:border-white/5 mb-6 sm:mb-8">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                  <User className="w-4 h-4 text-purple-500" />
+                  Candidate Summary
+                </h4>
+                <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed">
+                  {data.bio}
+                </p>
+              </div>
+
+              <DialogFooter className="flex-col sm:flex-row gap-3">
+                <DialogClose asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto h-12 rounded-xl border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 order-2 sm:order-1 cursor-pointer hover:scale-105 transition-transform"
+                  >
+                    Close
+                  </Button>
+                </DialogClose>
+
+                {/* Button triggers the Request Dialog State */}
+                <Button
+                  className="w-full sm:w-auto h-12 rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/20 text-base font-semibold group order-1 sm:order-2 cursor-pointer hover:scale-105 transition-transform"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsRequestOpen(true);
+                  }}
+                >
+                  Request Full Profile
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </DialogFooter>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -452,7 +532,11 @@ function DetailItem({
   return (
     <div className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-white dark:bg-white/2 shadow-sm">
       <div
-        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${highlight ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400" : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400"}`}
+        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+          highlight
+            ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+            : "bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400"
+        }`}
       >
         {React.cloneElement(icon as React.ReactElement, { size: 18 } as any)}
       </div>

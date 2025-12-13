@@ -16,6 +16,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Link } from "react-router";
+import { useAlert } from "../blocks/AlertProvider";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -27,6 +28,7 @@ interface PricingFeature {
 interface PricingTier {
   title: string;
   price: string;
+  priceId: string;
   frequency: string;
   description: string;
   features: PricingFeature[];
@@ -38,6 +40,7 @@ const pricingData: PricingTier[] = [
   {
     title: "BASIC",
     price: "$99",
+    priceId: "price_1SdQX0EOAFxwc3YvrlxXzpTc",
     frequency: "/month",
     description: "Essential access for immediate hiring needs.",
     buttonText: "Start Basic Plan",
@@ -53,6 +56,7 @@ const pricingData: PricingTier[] = [
   {
     title: "PRO",
     price: "$499",
+    priceId: "price_1SdQXUEOAFxwc3Yv3w2DRJuj",
     frequency: "/6 months",
     description: "Perfect for schools with ongoing recruitment.",
     popular: true,
@@ -69,6 +73,7 @@ const pricingData: PricingTier[] = [
   {
     title: "ULTIMATE",
     price: "$899",
+    priceId: "price_1SdQYLEOAFxwc3Yv4fYOFbbg",
     frequency: "/year",
     description: "The complete toolkit for large scale hiring.",
     buttonText: "Contact Sales for Ultimate",
@@ -83,8 +88,11 @@ const pricingData: PricingTier[] = [
   },
 ];
 
+const BASE_URL = import.meta.env?.VITE_BASE_URL;
+
 export const PricingSection = () => {
   const container = useRef<HTMLOptionElement>(null);
+  const {showError} = useAlert();
 
   useGSAP(
     () => {
@@ -120,6 +128,34 @@ export const PricingSection = () => {
     },
     { scope: container }
   );
+
+  async function handlePurchase(title: string, priceId: string): Promise<void> {
+    try {
+      const payload = {
+        priceId: priceId,
+        planId: title,
+      };
+
+      const res = await fetch(`${BASE_URL}/stripe/create-checkout-session`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json", // <<< REQUIRED
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.location.href = data.url;
+      } else {
+        showError(data.reason);
+        console.log("Error while creating the checkout session.");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  }
 
   return (
     <div className="flex justify-center items-center">
@@ -218,6 +254,7 @@ export const PricingSection = () => {
                   }`}
                   variant={tier.popular ? "default" : "outline"}
                   size="lg"
+                  onClick={() => handlePurchase(tier.title, tier.priceId)}
                 >
                   {tier.buttonText}
                 </Button>

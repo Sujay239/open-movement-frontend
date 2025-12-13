@@ -1,5 +1,5 @@
 import type { RouteObject } from "react-router-dom";
-import ProtectedRouteClient from "./ProtectedRoutes"; // Ensure this path is correct relative to this file
+import ProtectedRoute from "./ProtectedRoutes"; // Ensure this path is correct relative to this file
 
 // Layouts & Pages
 import DashboardLayout from "@/pages/Loggedin/SchoolDashboard";
@@ -13,9 +13,9 @@ import AcceptedTeachers from "@/components/user dashboard/AcceptedTeachers";
 export const schoolRoutes: RouteObject = {
   path: "/school",
   element: (
-    <ProtectedRouteClient>
+    <ProtectedRoute allowedRoles={['school']}>
       <DashboardLayout />
-    </ProtectedRouteClient>
+    </ProtectedRoute>
   ),
   children: [
     {

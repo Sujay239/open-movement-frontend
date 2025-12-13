@@ -1,9 +1,10 @@
-import React, { useState, useRef } from "react";
+// SettingsPage.tsx
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+// import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -21,50 +22,79 @@ import {
   Save,
   Camera,
   Lock,
-  Bell,
+  // Bell,
   Shield,
-  CheckCircle2,
+  // CheckCircle2,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 
-export const SettingsPage = () => {
-  const container = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+const BASE_URL = import.meta.env?.VITE_BASE_URL ?? "";
 
-  // 1. PRE-FILLED DATA STATE
+type SchoolProfile = {
+  id?: number;
+  name?: string;
+  contact_name?: string;
+  email?: string;
+  // password_hash not exposed from API — handled by change-password endpoint
+  country?: string | null;
+  region?: string | null;
+  subscription_status?: string | null;
+  subscription_plan?: string | null;
+  subscription_started_at?: string | null;
+  subscription_end_at?: string | null;
+  // extras kept locally
+  address?: string | null;
+  city?: string | null;
+  phone?: string | null;
+  description?: string | null;
+  website? : string | null;
+};
+
+export const SettingsPage: React.FC = () => {
+  const container = useRef<HTMLDivElement>(null);
+
+  // UI state
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [savingPassword, setSavingPassword] = useState<boolean>(false);
+
+  // fetched profile
+  const [profile, setProfile] = useState<SchoolProfile>({
+    name: "",
+    contact_name: "",
+    email: "",
+    country: "",
+    region: "",
+    address: "",
+    city: "",
+    phone: "",
+    description: "",
+    website : ""
+  });
+
+  // local form state (separate so unsaved edits don't mutate fetched profile immediately)
   const [formData, setFormData] = useState({
-    schoolName: "Springfield High School",
-    website: "https://www.springfieldhigh.edu",
-    description:
-      "A leading secondary school focused on STEM education and holistic student development.",
-    email: "admin@springfield.edu",
-    phone: "+1 (555) 123-4567",
-    address: "742 Evergreen Terrace",
-    city: "Springfield",
-    country: "USA",
+    name: "",
+    contact_name: "",
+    email: "",
+    description: "",
+    address: "",
+    city: "",
+    country: "",
+    region: "",
+    phone: "",
+    website: "",
     notifications: true,
     publicProfile: true,
   });
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
-  };
+  // password fields (optional)
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
-  const handleSave = () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 3000); // Reset success message
-    }, 1500);
-  };
-
+  // animation
   useGSAP(
     () => {
       gsap.fromTo(
@@ -76,16 +106,177 @@ export const SettingsPage = () => {
           duration: 0.6,
           stagger: 0.15,
           ease: "power2.out",
-          delay: 0.1,
+          delay: 0.05,
         }
       );
     },
     { scope: container }
   );
 
+  // load profile on mount
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchProfile() {
+      setLoading(true);
+      try {
+        const res = await fetch(`${BASE_URL}/auth/me`, {
+          method: "GET",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`Failed to fetch profile: ${res.status} ${text}`);
+        }
+
+        const data: SchoolProfile = await res.json();
+
+        if (!mounted) return;
+
+        // Map API fields into form fields (use null coalescing)
+        const mapped = {
+          name: data.name ?? "",
+          contact_name: data.contact_name ?? "",
+          email: data.email ?? "",
+          description: data.description ?? "",
+          address: data.address ?? "",
+          city: data.city ?? "",
+          country: data.country ?? "",
+          region: data.region ?? "",
+          phone: data.phone ?? "",
+          website : data.website?? "",
+          notifications: true, // default - you can extend API to hold preferences
+          publicProfile: true,
+        };
+
+        setProfile(data);
+        setFormData(mapped);
+      } catch (err: any) {
+        console.error(err);
+        alert(err?.message ?? "Failed to load profile");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    fetchProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // form field change
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  // basic profile save (PATCH)
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Prepare payload - send only fields we allow to update
+      const payload = {
+        name: formData.name,
+        contact_name: formData.contact_name,
+        email: formData.email,
+        country: formData.country,
+        region: formData.region,
+        // extras for later
+        address: formData.address,
+        city: formData.city,
+        phone: formData.phone,
+        description: formData.description,
+        website : formData.website
+      };
+
+      const res = await fetch(`${BASE_URL}/school/update`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Save failed: ${res.status} ${text}`);
+      }
+
+      const data = await res.json().catch(() => ({}));
+      // update local profile with returned data if provided
+      if (data) {
+        setProfile((p) => ({ ...p, ...data }));
+      }
+
+      // reflect saved values (in case server normalized)
+      setFormData((prev) => ({ ...prev, ...payload }));
+      alert(data?.message ?? "Profile saved successfully");
+    } catch (err: any) {
+      console.error("Save error:", err);
+      alert(err?.message ?? "Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // password change
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      alert("Please fill current and new password fields.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      alert("New password and confirm password do not match.");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const payload = {
+        currentPassword,
+        newPassword,
+      };
+
+      const res = await fetch(`${BASE_URL}/auth/change-password`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Change password failed: ${res.status} ${text}`);
+      }
+
+      const data = await res.json().catch(() => ({}));
+      alert(data?.message ?? "Password updated successfully");
+
+      // clear password fields
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err: any) {
+      console.error("Password change error:", err);
+      alert(err?.message ?? "Failed to change password");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   return (
     <div ref={container} className="max-w-5xl mx-auto space-y-8 pb-20">
-      {/* PAGE HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 settings-section">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
@@ -99,19 +290,15 @@ export const SettingsPage = () => {
 
         <Button
           onClick={handleSave}
-          disabled={isLoading}
-          className={`min-w-[140px] transition-all duration-300 ${
-            isSaved
-              ? "bg-green-600 hover:bg-green-700 text-white"
+          disabled={saving}
+          className={`min-w-40 transition-all duration-300 ${
+            saving
+              ? "bg-blue-500/80 text-white"
               : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
           }`}
         >
-          {isLoading ? (
+          {saving ? (
             "Saving..."
-          ) : isSaved ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 mr-2" /> Saved!
-            </>
           ) : (
             <>
               <Save className="w-4 h-4 mr-2" /> Save Changes
@@ -121,65 +308,89 @@ export const SettingsPage = () => {
       </div>
 
       <div className="grid gap-8">
-        {/* 1. SCHOOL PROFILE CARD */}
-        <Card className="settings-section border-slate-200 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm shadow-sm overflow-hidden">
-          {/* Banner Image */}
-          <div className="h-32 bg-linear-to-r from-blue-600 to-purple-600 relative">
-            <div className="absolute inset-0 bg-black/10"></div>
+        <Card className="settings-section border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl shadow-md rounded-2xl overflow-hidden">
+          {/* Banner Section */}
+          <div className="h-40 bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 relative">
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-sm"></div>
           </div>
 
-          <CardHeader className="relative pt-0 pb-8">
-            <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-12 px-2">
+          {/* Header */}
+          <CardHeader className="relative -mt-16 pb-6 px-8">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6">
               {/* Avatar Upload */}
               <div className="relative group">
-                <Avatar className="w-24 h-24 border-4 border-white dark:border-zinc-900 shadow-xl">
-                  <AvatarImage src="https://github.com/shadcn.png" />
-                  <AvatarFallback>SH</AvatarFallback>
+                <Avatar className="w-28 h-28 rounded-2xl border-white dark:border-zinc-900 shadow-2xl">
+                  <AvatarImage src={""} />
+                  <AvatarFallback className="text-3xl font-semibold">
+                    {formData.name?.charAt(0) ?? "S"}
+                  </AvatarFallback>
                 </Avatar>
-                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-4 border-transparent">
-                  <Camera className="w-6 h-6 text-white" />
+
+                {/* Hover overlay */}
+                <div
+                  className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100
+                        flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <Camera className="w-7 h-7 text-white" />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <CardTitle className="text-2xl">
-                  {formData.schoolName}
-                </CardTitle>
-                <CardDescription>
-                  School ID: SCH-88210 • Premium Plan
+              {/* Title + Meta Info */}
+              <div className="flex flex-col gap-1 w-full">
+                {/* Editable School Name */}
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="text-2xl max-md:text-[14px] font-bold shadow-none border-none p-2 h-auto
+                     focus-visible:ring-0 focus-visible:border-transparent bg-transparent"
+                />
+
+                {/* Meta Info */}
+                <CardDescription className="text-sm text-slate-500 dark:text-zinc-400">
+                  School ID:{" "}
+                  <span className="font-semibold">{profile.id ?? "—"}</span> •{" "}
+                  {profile.subscription_plan ?? "No Subscription"}
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
+          {/* Body */}
+          <CardContent className="space-y-8 px-8 pb-10">
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Contact Name */}
               <div className="space-y-2">
-                <Label htmlFor="schoolName">School Name</Label>
+                <Label htmlFor="contact_name">Contact Name</Label>
                 <div className="relative">
                   <School className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="schoolName"
-                    value={formData.schoolName}
+                    id="contact_name"
+                    value={formData.contact_name}
                     onChange={handleInputChange}
-                    className="pl-9 bg-slate-50 dark:bg-zinc-950/50"
+                    className="pl-10 py-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50"
                   />
                 </div>
               </div>
 
+              {/* Website */}
               <div className="space-y-2">
                 <Label htmlFor="website">Website</Label>
                 <div className="relative">
                   <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="website"
-                    value={formData.website}
-                    onChange={handleInputChange}
-                    className="pl-9 bg-slate-50 dark:bg-zinc-950/50"
+                    value={formData.website ?? ""}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, website: e.target.value }))
+                    }
+                    placeholder="https://yourschool.com"
+                    className="pl-10 py-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50"
                   />
                 </div>
               </div>
 
+              {/* Description */}
               <div className="col-span-2 space-y-2">
                 <Label htmlFor="description">About the School</Label>
                 <Textarea
@@ -187,18 +398,18 @@ export const SettingsPage = () => {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows={4}
-                  className="bg-slate-50 dark:bg-zinc-950/50 resize-none"
+                  className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50 resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  This description will be visible to teachers when they view
-                  your job posts.
+                  This description will appear on job posts and teacher-facing
+                  pages.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* 2. CONTACT INFORMATION */}
+        {/* CONTACT INFORMATION */}
         <Card className="settings-section border-slate-200 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -274,8 +485,8 @@ export const SettingsPage = () => {
           </CardContent>
         </Card>
 
-        {/* 3. SECURITY & PREFERENCES */}
-        <div className="grid md:grid-cols-2 gap-8 settings-section">
+        {/* SECURITY & PREFERENCES */}
+        <div className="grid  settings-section">
           {/* Change Password */}
           <Card className="border-slate-200 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
             <CardHeader>
@@ -296,6 +507,8 @@ export const SettingsPage = () => {
                     id="current-pass"
                     type="password"
                     placeholder="••••••••"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
                     className="pl-9 bg-slate-50 dark:bg-zinc-950/50"
                   />
                 </div>
@@ -308,56 +521,34 @@ export const SettingsPage = () => {
                     id="new-pass"
                     type="password"
                     placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     className="pl-9 bg-slate-50 dark:bg-zinc-950/50"
                   />
                 </div>
               </div>
-              <Button variant="outline" className="w-full mt-2">
-                Update Password
+              <div className="space-y-2">
+                <Label htmlFor="confirm-new-pass">Confirm New Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="confirm-new-pass"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="pl-9 bg-slate-50 dark:bg-zinc-950/50"
+                  />
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full mt-2"
+                onClick={handleChangePassword}
+                disabled={savingPassword}
+              >
+                {savingPassword ? "Updating..." : "Update Password"}
               </Button>
-            </CardContent>
-          </Card>
-
-          {/* Notifications */}
-          <Card className="border-slate-200 dark:border-white/10 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5 text-amber-500" />
-                Preferences
-              </CardTitle>
-              <CardDescription>
-                Manage your email notifications.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Email Notifications</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Receive updates when a teacher accepts a request.
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.notifications}
-                  onCheckedChange={(c :any) =>
-                    setFormData((p) => ({ ...p, notifications: c }))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Public Profile</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Allow teachers to find your school profile.
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.publicProfile}
-                  onCheckedChange={(c : any ) =>
-                    setFormData((p) => ({ ...p, publicProfile: c }))
-                  }
-                />
-              </div>
             </CardContent>
           </Card>
         </div>

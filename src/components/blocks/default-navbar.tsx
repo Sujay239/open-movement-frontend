@@ -19,11 +19,15 @@ import { LogIn } from "lucide-react";
 // Make sure you have the actual file for the dark logo!
 import LogoLight from "@/assets/open movement logo.png";
 import LogoDark from "@/assets/dark-logo.png"; // CHANGE THIS to your dark logo path
+import { useNavigate } from "react-router";
 
 type DefaultNavbarProps = {
   routes: AppRoute[];
 };
 
+
+
+const BASE_URL = import.meta.env?.VITE_BASE_URL;
 const labelFromPath = (path: string) => {
   const p = normalizePath(path);
   if (!p) return "Home";
@@ -40,6 +44,7 @@ const labelFromPath = (path: string) => {
 
 export default function DefaultNavbar({ routes }: DefaultNavbarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const links = routes
     .filter((route) => route.path !== "*")
@@ -53,6 +58,44 @@ export default function DefaultNavbar({ routes }: DefaultNavbarProps) {
         rawPath: route.path,
       };
     });
+
+  async function handleLoginRequest(
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ): Promise<void> {
+    event.preventDefault();
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/isLoggedin`, {
+        method: "POST",
+        credentials: "include", // 🔑 REQUIRED to send cookies
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data: {
+        loggedIn: boolean;
+        role: string | null;
+      } = await response.json();
+
+      if (!data.loggedIn || !data.role) {
+        navigate("/login");
+        return;
+      }
+
+      // 🔁 Role-based navigation
+      if (data.role === "school") {
+        navigate("/school/dashboard");
+      } else if (data.role === "admin") {
+        navigate("/admin");
+      } else {
+        // fallback
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Login check failed:", error);
+    }
+  }
 
   return (
     <header className="border-b px-4 md:px-6">
@@ -178,13 +221,13 @@ export default function DefaultNavbar({ routes }: DefaultNavbarProps) {
           <ModeToggle />
           <Button
             asChild
-            className="text-sm hover:scale-105 transition-transform duration-200 max-lg:hidden"
+            className="text-sm hover:scale-105 transition-transform duration-200 max-lg:hidden cursor-pointer"
             size="sm"
           >
-            <a href="/login">
+            <Button onClick={handleLoginRequest} className="cursor-pointer">
               Log In
-              <LogIn className=" w-5 h-5 " />
-            </a>
+              <LogIn className=" w-5 h-5 cursor-pointer" />
+            </Button>
           </Button>
           <Button
             asChild
