@@ -60,7 +60,6 @@ export const SubscriptionPage: React.FC = () => {
     { scope: container }
   );
 
-  // loadData is exposed so we can re-run after cancelling
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -103,7 +102,6 @@ export const SubscriptionPage: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-    // call loadData but guard if unmounted while awaiting
     (async () => {
       if (!mounted) return;
       await loadData();
@@ -111,11 +109,7 @@ export const SubscriptionPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-    // intentionally no deps so it runs once
   }, []);
-
-  // helpers
-  // const toDate = (s?: string | null) => (s ? new Date(s) : null);
 
   const computeTimeRemaining = (endIso?: string | null) => {
     if (!endIso) return null;
@@ -132,40 +126,34 @@ export const SubscriptionPage: React.FC = () => {
   };
 
   /**
-   * computeProgress (returns percent *remaining*):
-   * - returns a number in [0,100] measuring how much time is left relative to the plan period
-   * - if start or end is missing/invalid, returns 100 (treat as "full/indeterminate" green)
-   * - clamps values between 0 and 100
+   * computeProgress:
+   * Returns 0 for NO_SUBSCRIPTION to show an empty bar (implies nothing to track).
+   * Returns 0-100 for active subscriptions.
    */
   const computeProgress = (
+    status: string,
     startedIso?: string | null,
     endIso?: string | null
   ): number => {
-    // If there's no end date, consider it indefinite (show full/green)
-    if (!endIso) return 100;
+    // If no subscription, progress is 0 (empty bar)
+    if (status === "NO_SUBSCRIPTION") return 0;
+
+    if (!endIso) return 100; // Indefinite active plan
 
     const end = new Date(endIso).getTime();
     if (!isFinite(end)) return 100;
 
-    // If there's no start date, we can't calculate a proper ratio — treat as full (green)
     if (!startedIso) {
-      // If end is already expired, return 0
       return end <= Date.now() ? 0 : 100;
     }
 
     const start = new Date(startedIso).getTime();
     if (!isFinite(start)) return end <= Date.now() ? 0 : 100;
-
-    // If end <= start, invalid period — if already expired -> 0 else full
     if (end <= start) return end <= Date.now() ? 0 : 100;
 
     const now = Date.now();
-
-    // percent remaining = (end - now) / (end - start) * 100
     const remainingMs = end - now;
     const totalMs = end - start;
-
-    // Clamp remaining between 0 and totalMs
     const clampedRemaining = Math.max(0, Math.min(remainingMs, totalMs));
     const pctRemaining = Math.round((clampedRemaining / totalMs) * 100);
 
@@ -173,42 +161,41 @@ export const SubscriptionPage: React.FC = () => {
     return Math.max(0, Math.min(100, pctRemaining));
   };
 
-  // Derived UI values
+  // --- DERIVED UI VALUES ---
+
   const status = subscriptionStatus?.subscription_status ?? "NO_SUBSCRIPTION";
-  const plan =
-    profile?.subscription_plan ??
-    (status === "NO_SUBSCRIPTION" ? "Trial" : "Free");
+
+  // Use "Free Tier" text instead of just "Free" to sound less like a specific plan
+  const planName = profile?.subscription_plan ?? "Free Tier";
+
   const startedAt = profile?.subscription_started_at ?? null;
   const endAt = subscriptionStatus?.subscription_end_at ?? null;
 
   const remaining = computeTimeRemaining(endAt);
-  const rawPercentRemaining = computeProgress(startedAt, endAt);
+  const rawPercentRemaining = computeProgress(status, startedAt, endAt);
 
-  /**
-   * safeProgress: numeric percent (0-100) indicating how much time is left.
-   * - used for the width of the custom progress bar
-   * - default to 100 when computation isn't possible (treat as full/green)
-   */
   const safeProgress: number =
     typeof rawPercentRemaining === "number" && isFinite(rawPercentRemaining)
       ? Math.max(0, Math.min(100, rawPercentRemaining))
-      : 100;
+      : 0;
 
-  // Determine progress color based on *remaining* percentage
+  // Determine progress color
   const getProgressColor = (pct: number) => {
-    if (pct >= 67) return "bg-green-500 dark:bg-green-600"; // plenty left
-    if (pct >= 34) return "bg-yellow-500 dark:bg-yellow-600"; // mid
-    return "bg-red-500 dark:bg-red-600"; // low / almost expired
+    // If NO_SUBSCRIPTION (0%), make it slate/gray to look "inactive"
+    if (status === "NO_SUBSCRIPTION") return "bg-slate-200 dark:bg-zinc-700";
+
+    if (pct >= 67) return "bg-green-500 dark:bg-green-600";
+    if (pct >= 34) return "bg-yellow-500 dark:bg-yellow-600";
+    return "bg-red-500 dark:bg-red-600";
   };
 
   const progressColor = getProgressColor(safeProgress);
 
-  // Friendly strings
+  // Friendly strings - UPDATED for better context
   const timeRemainingLabel = (() => {
-    if (!endAt) {
-      if (status === "NO_SUBSCRIPTION") return "Trial access (no end date)";
-      return "No subscription end date";
-    }
+    if (status === "NO_SUBSCRIPTION") return "Not Subscribed"; // Clear status
+
+    if (!endAt) return "Active (Recurring)";
     if (!remaining) return "—";
     if (remaining.expired) return "Expired";
     if (remaining.days > 0) return `${remaining.days}d ${remaining.hours}h`;
@@ -217,7 +204,9 @@ export const SubscriptionPage: React.FC = () => {
   })();
 
   const expiryText = (() => {
-    if (!endAt) return "No expiry date set";
+    if (status === "NO_SUBSCRIPTION") return "No active billing cycle"; // Clear limitation
+
+    if (!endAt) return "Renews automatically";
     if (!remaining) return "—";
     if (remaining.expired)
       return `Ended on ${new Date(endAt).toLocaleString()}`;
@@ -225,23 +214,11 @@ export const SubscriptionPage: React.FC = () => {
   })();
 
   // Cancel flow
-  // Button label: if status === "NO_SUBSCRIPTION" treat as trial -> label "Cancel Trial"
-  // otherwise "Cancel Subscription" and open confirm modal
-  const isTrial = status === "NO_SUBSCRIPTION";
-  const cancelButtonLabel = isTrial ? "Cancel Trial" : "Cancel Subscription";
+  const hasActiveSubscription =
+    status !== "NO_SUBSCRIPTION" && status !== "CANCELED";
+  const cancelButtonLabel = "Cancel Subscription";
 
   const onCancelClick = () => {
-    if (isTrial) {
-      // keep original simple behavior for trial cancellation (can be replaced)
-      // Show a simple confirm prompt for trial cancellation
-      if (confirm("Are you sure you want to cancel the trial access?")) {
-        // Placeholder — implement trial cancellation logic if needed
-        alert("Trial cancelled (placeholder).");
-      }
-      return;
-    }
-
-    // for non-trial (active) subscription, open confirm modal
     setCancelError(null);
     setCancelSuccess(null);
     setConfirmOpen(true);
@@ -253,8 +230,6 @@ export const SubscriptionPage: React.FC = () => {
     setCancelSuccess(null);
 
     try {
-      // Attempt API call to cancel subscription.
-      // Adjust endpoint/method/payload to your backend contract.
       const res = await fetch(`${BASE_URL}/subscription/cancel`, {
         method: "POST",
         credentials: "include",
@@ -270,12 +245,8 @@ export const SubscriptionPage: React.FC = () => {
         throw new Error(`Cancel failed: ${res.status} ${txt}`);
       }
 
-      // Optionally parse JSON response
-      // const data = await res.json().catch(() => ({}));
-
       setCancelSuccess("Subscription cancelled successfully.");
       setConfirmOpen(false);
-      // refresh data to reflect cancellation
       await loadData();
     } catch (err: any) {
       console.error("Cancel subscription error:", err);
@@ -284,6 +255,18 @@ export const SubscriptionPage: React.FC = () => {
       setCancelling(false);
     }
   };
+
+  // Determine Badge Styling
+  const badgeVariantStyles =
+    status === "ACTIVE"
+      ? "border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20"
+      : "border-slate-300 text-slate-500 bg-slate-100 dark:bg-zinc-800 dark:border-zinc-700";
+
+  const badgeText = loading
+    ? "…"
+    : status === "ACTIVE"
+      ? "Active"
+      : "Free Tier"; // More humble than "Free Plan"
 
   return (
     <div ref={container} className="space-y-8 max-w-5xl mx-auto">
@@ -299,26 +282,36 @@ export const SubscriptionPage: React.FC = () => {
       <div className="flex gap-8 flex-col">
         {/* CURRENT PLAN CARD */}
         <Card className="sub-card md:col-span-12 lg:col-span-7 bg-white dark:bg-zinc-900/50 border-slate-200 dark:border-white/10 shadow-sm relative overflow-hidden">
+          {/* Only show colored top bar if Active */}
           <div
             className={`absolute top-0 left-0 w-full h-1 ${
-              status === "ACTIVE" ? "bg-green-500" : "bg-amber-500"
+              status === "ACTIVE" ? "bg-green-500" : "bg-transparent"
             }`}
           ></div>
 
           <CardHeader>
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-xl">Current Plan</CardTitle>
+                <CardTitle className="text-xl">Plan Status</CardTitle>
 
                 <CardDescription>
                   {loading ? (
                     "Loading plan..."
                   ) : error ? (
                     <span className="text-red-600">Failed to load data</span>
+                  ) : status === "NO_SUBSCRIPTION" ? (
+                    // Updated Text for No Subscription
+                    <span className="text-slate-500">
+                      You are currently not subscribed to any plan.
+                    </span>
                   ) : (
+                    // Text for Active Subscription
                     <>
                       You are currently on the{" "}
-                      <span className="font-semibold">{plan}</span> plan.
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {planName}
+                      </span>{" "}
+                      plan.
                     </>
                   )}
                 </CardDescription>
@@ -326,17 +319,9 @@ export const SubscriptionPage: React.FC = () => {
 
               <Badge
                 variant="outline"
-                className={`border ${
-                  status === "ACTIVE"
-                    ? "border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20"
-                    : "border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-900/20"
-                }`}
+                className={`border ${badgeVariantStyles}`}
               >
-                {loading
-                  ? "…"
-                  : status === "ACTIVE"
-                    ? "Active"
-                    : "Trial Active"}
+                {badgeText}
               </Badge>
             </div>
           </CardHeader>
@@ -345,15 +330,20 @@ export const SubscriptionPage: React.FC = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-600 dark:text-zinc-400">
-                  Time Remaining
+                  {status === "NO_SUBSCRIPTION"
+                    ? "Subscription Status"
+                    : "Time Remaining"}
                 </span>
-                <span className="font-bold font-mono text-amber-600 dark:text-amber-400">
+                <span
+                  className={`font-bold font-mono ${status === "NO_SUBSCRIPTION" ? "text-slate-400" : "text-slate-700 dark:text-slate-300"}`}
+                >
                   {loading ? "…" : timeRemainingLabel}
                 </span>
               </div>
 
-              {/* CUSTOM PROGRESS BAR (colors depend on remaining time) */}
-              <div className="relative w-full h-2 bg-slate-200 dark:bg-white/10 rounded overflow-hidden">
+              {/* PROGRESS BAR */}
+              {/* If Free Tier, this bar will now be empty (width 0%) */}
+              <div className="relative w-full h-2 bg-slate-100 dark:bg-zinc-800 rounded overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 ${progressColor}`}
                   style={{ width: `${safeProgress}%` }}
@@ -361,7 +351,7 @@ export const SubscriptionPage: React.FC = () => {
               </div>
 
               <p className="text-xs text-muted-foreground pt-1">
-                {loading ? "Loading expiry..." : expiryText}
+                {loading ? "Loading..." : expiryText}
               </p>
             </div>
 
@@ -374,7 +364,7 @@ export const SubscriptionPage: React.FC = () => {
                     ? "Checking access..."
                     : status === "ACTIVE"
                       ? "Your subscription is active — full access granted."
-                      : "Trial accounts can view anonymous profiles but cannot request contact details. Upgrade to unlock full features."}
+                      : "You are viewing the limited free version. Upgrade to a premium plan to unlock full features."}
                 </p>
               </div>
             </div>
@@ -382,24 +372,28 @@ export const SubscriptionPage: React.FC = () => {
 
           <CardFooter className="border-t border-slate-100 dark:border-white/5 pt-6">
             <div className="flex gap-3 w-full">
-              <Button
-                variant="outline"
-                className="text-red-500  border-slate-200 dark:border-white/10 flex-1 cursor-pointer hover:bg-red-600 hover:text-white transition-all duration-300"
-                onClick={onCancelClick}
-                disabled={cancelling}
-              >
-                {cancelling ? "Processing..." : cancelButtonLabel}
-              </Button>
+              {/* Only show Cancel button if there is an ACTIVE subscription */}
+              {hasActiveSubscription && (
+                <Button
+                  variant="outline"
+                  className="text-red-500 border-slate-200 dark:border-white/10 flex-1 cursor-pointer hover:bg-red-600 hover:text-white transition-all duration-300"
+                  onClick={onCancelClick}
+                  disabled={cancelling}
+                >
+                  {cancelling ? "Processing..." : cancelButtonLabel}
+                </Button>
+              )}
 
               <Button
                 onClick={() => {
-                  // send user to pricing section / plan upgrade
                   const el = document.getElementById("pricing");
                   if (el) el.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="flex-1 cursor-pointer hover:bg-green-400 hover:scale-105 transition-all duration-300"
+                className={`flex-1 cursor-pointer hover:bg-green-400 hover:scale-105 transition-all duration-300 ${!hasActiveSubscription ? "w-full" : ""}`}
               >
-                Upgrade Plan
+                {status === "NO_SUBSCRIPTION"
+                  ? "Get Full Access"
+                  : "Upgrade Plan"}
               </Button>
             </div>
           </CardFooter>
@@ -424,7 +418,7 @@ export const SubscriptionPage: React.FC = () => {
         <div className="text-sm text-red-600 max-w-5xl mx-auto">{error}</div>
       )}
 
-      {/* Confirmation modal for cancelling active subscription */}
+      {/* Confirmation modal */}
       {confirmOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center px-4"
@@ -443,9 +437,7 @@ export const SubscriptionPage: React.FC = () => {
             </h3>
             <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
               Are you sure you want to cancel your subscription? You will lose
-              paid access immediately or at the end of the billing period
-              depending on your plan. This action can usually be reversed by
-              re-subscribing.
+              paid access immediately.
             </p>
 
             {cancelError && (

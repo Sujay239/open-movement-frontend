@@ -9,22 +9,32 @@ import SubscriptionPage from "@/components/user dashboard/Subscription";
 import SettingsPage from "@/components/user dashboard/SettingPage";
 import SupportPage from "@/components/user dashboard/SupportPage";
 import AcceptedTeachers from "@/components/user dashboard/AcceptedTeachers";
+import AccessCodePage from "@/components/user dashboard/AccessCodePage";
+import SubscriptionGuard from "@/components/SubscriptionGuard";
 
 export const schoolRoutes: RouteObject = {
   path: "/school",
   element: (
-    <ProtectedRoute allowedRoles={['school']}>
+    <ProtectedRoute allowedRoles={["school"]}>
       <DashboardLayout />
     </ProtectedRoute>
   ),
   children: [
     {
-      path : "dashboard",
-      element: <TeacherBrowser />,
+      path: "dashboard",
+      element: (
+        <SubscriptionGuard>
+          <TeacherBrowser />,
+        </SubscriptionGuard>
+      ),
     },
     {
       path: "requests",
-      element: <RequestsPage />,
+      element: (
+        <SubscriptionGuard>
+          <RequestsPage />,
+        </SubscriptionGuard>
+      ),
     },
     {
       path: "subscription",
@@ -33,7 +43,7 @@ export const schoolRoutes: RouteObject = {
     // Placeholders for future routes
     {
       path: "settings",
-      element: <SettingsPage />
+      element: <SettingsPage />,
     },
     {
       path: "support",
@@ -41,7 +51,15 @@ export const schoolRoutes: RouteObject = {
     },
     {
       path: "accepted",
-      element: <AcceptedTeachers />,
+      element: (
+        <SubscriptionGuard>
+          <AcceptedTeachers />,
+        </SubscriptionGuard>
+      ),
+    },
+    {
+      path: "access-code",
+      element: <AccessCodePage />,
     },
   ],
 };

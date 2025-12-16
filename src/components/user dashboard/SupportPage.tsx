@@ -32,7 +32,7 @@ export const SupportPage = () => {
   const [issueType, setIssueType] = useState<string>("Billing & Subscription");
   const [message, setMessage] = useState<string>("");
 
-    const {showError,showSuccess} = useAlert();
+  const { showError, showSuccess } = useAlert();
   useGSAP(
     () => {
       // 1. Header & Left Content Entrance
@@ -61,7 +61,7 @@ export const SupportPage = () => {
 
   const handleSendSupportEmail = async () => {
     setIsSubmitting(true);
-    if(message === ""){
+    if (message === "") {
       showError("Message cannot be empty.");
       setIsSubmitting(false);
       return;
@@ -70,7 +70,7 @@ export const SupportPage = () => {
       const res = await fetch(`${BASE_URL}/api/support/send-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials : 'include',
+        credentials: "include",
         body: JSON.stringify({
           issueType,
           message,
@@ -87,7 +87,6 @@ export const SupportPage = () => {
       setIsSubmitting(false);
     }
   };
-
 
   return (
     <div ref={container} className="max-w-6xl mx-auto space-y-12 pb-20">
@@ -172,7 +171,7 @@ export const SupportPage = () => {
                   id="issue-type"
                   value={issueType}
                   onChange={(e) => setIssueType(e.target.value)}
-                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-3 py-2 text-sm"
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-3 py-2 text-sm cursor-pointer"
                 >
                   <option>Billing & Subscription</option>
                   <option>Technical Issue</option>
@@ -196,7 +195,7 @@ export const SupportPage = () => {
               {/* SEND BUTTON */}
               <div className="pt-2">
                 <Button
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 cursor-pointer"
                   onClick={handleSendSupportEmail} // <-- IMPORTANT CHANGE
                   disabled={isSubmitting}
                 >
@@ -232,7 +231,7 @@ export const SupportPage = () => {
                 value="item-1"
                 className="border-slate-200 dark:border-white/10"
               >
-                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline">
+                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline cursor-pointer">
                   How do I request a full profile?
                 </AccordionTrigger>
                 <AccordionContent className="text-slate-600 dark:text-zinc-400 leading-relaxed">
@@ -246,7 +245,7 @@ export const SupportPage = () => {
                 value="item-2"
                 className="border-slate-200 dark:border-white/10"
               >
-                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline">
+                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline cursor-pointer">
                   Can I upgrade from Trial to Pro instantly?
                 </AccordionTrigger>
                 <AccordionContent className="text-slate-600 dark:text-zinc-400 leading-relaxed">
@@ -260,7 +259,7 @@ export const SupportPage = () => {
                 value="item-3"
                 className="border-slate-200 dark:border-white/10"
               >
-                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline">
+                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline cursor-pointer">
                   Are candidate profiles anonymous?
                 </AccordionTrigger>
                 <AccordionContent className="text-slate-600 dark:text-zinc-400 leading-relaxed">
@@ -276,7 +275,7 @@ export const SupportPage = () => {
                 value="item-4"
                 className="border-slate-200 dark:border-white/10"
               >
-                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline">
+                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline cursor-pointer">
                   What if a teacher declines my request?
                 </AccordionTrigger>
                 <AccordionContent className="text-slate-600 dark:text-zinc-400 leading-relaxed">
@@ -290,7 +289,7 @@ export const SupportPage = () => {
                 value="item-5"
                 className="border-slate-200 dark:border-white/10"
               >
-                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline">
+                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline cursor-pointer">
                   Is there a limit to how many requests I can send?
                 </AccordionTrigger>
                 <AccordionContent className="text-slate-600 dark:text-zinc-400 leading-relaxed">
@@ -304,7 +303,7 @@ export const SupportPage = () => {
                 value="item-6"
                 className="border-slate-200 dark:border-white/10"
               >
-                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline">
+                <AccordionTrigger className="text-slate-900 dark:text-white text-base hover:text-blue-600 dark:hover:text-blue-400 hover:no-underline cursor-pointer">
                   How do I reset my password?
                 </AccordionTrigger>
                 <AccordionContent className="text-slate-600 dark:text-zinc-400 leading-relaxed">

@@ -98,7 +98,6 @@ const BASE_URL = import.meta.env?.VITE_BASE_URL;
 
 export const RequestsPage: React.FC = () => {
   const container = useRef<HTMLDivElement>(null);
-  const { showError, showSuccess } = useAlert();
 
   // Fetchable state
   const [requests, setRequests] = useState<any[]>([]);
@@ -112,6 +111,7 @@ export const RequestsPage: React.FC = () => {
   const [requestToArchive, setRequestToArchive] = useState<any | null>(null);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const {showError,showSuccess} = useAlert();
 
   // Animation
   useGSAP(
@@ -279,7 +279,7 @@ const handleContactAdmin = () => {
 
   const handleDownloadReport = () => {
     if (!requests || requests.length === 0) {
-      alert("No data to download.");
+      showError("No data to download.");
       return;
     }
 
@@ -342,6 +342,15 @@ const handleContactAdmin = () => {
       console.log(err);
     }
   }
+
+
+  const formatLocalDate = (value?: string | null) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(); // local time, safe
+  };
+
 
   return (
     <div ref={container} className="space-y-8 max-w-6xl mx-auto pb-20">
@@ -418,9 +427,7 @@ const handleContactAdmin = () => {
                     {req.subjects?.[0] || ""}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs sm:text-sm">
-                    {req.requested_at
-                      ? new Date(req.requested_at).toISOString().split("T")[0]
-                      : ""}
+                    {formatLocalDate(req.requested_at)}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Badge

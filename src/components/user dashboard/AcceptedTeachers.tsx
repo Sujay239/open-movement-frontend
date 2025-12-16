@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { useAlert } from "../blocks/AlertProvider";
 
 const BASE_URL = import.meta.env?.VITE_BASE_URL ?? "";
 
@@ -76,6 +77,7 @@ export const AcceptedTeachers: React.FC = () => {
   const [teachers, setTeachers] = useState<CardData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const {showError,showSuccess} = useAlert();
 
   useGSAP(
     () => {
@@ -189,9 +191,9 @@ export const AcceptedTeachers: React.FC = () => {
     try {
       await navigator.clipboard.writeText(email);
       // lightweight feedback - replace with your toast if available
-      alert("Email copied to clipboard");
+      showSuccess("Email copied to clipboard");
     } catch {
-      alert("Failed to copy email");
+      showError("Failed to copy email");
     }
   };
 
@@ -206,10 +208,9 @@ export const AcceptedTeachers: React.FC = () => {
 
   const handleDownloadCv = (cvLink?: string | null) => {
     if (!cvLink) {
-      alert("CV not available");
+      showError("CV not available");
       return;
     }
-    // open CV (backend should serve a downloadable link)
     window.open(cvLink, "_blank");
   };
 
@@ -275,7 +276,7 @@ export const AcceptedTeachers: React.FC = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="hidden sm:flex border-slate-200 dark:border-white/10"
+                  className="hidden sm:flex border-slate-200 dark:border-white/10 cursor-pointer"
                   onClick={() => handleCopyEmail(teacher.email)}
                 >
                   <Copy className="w-3.5 h-3.5 mr-2" />
@@ -376,7 +377,7 @@ export const AcceptedTeachers: React.FC = () => {
 
             <CardFooter className="p-6 pt-0 gap-3">
               <Button
-                className="flex-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-md"
+                className="flex-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-md cursor-pointer"
                 onClick={() => handleOpenGmail(teacher.email)}
               >
                 <Mail className="w-4 h-4 mr-2" />
@@ -384,7 +385,7 @@ export const AcceptedTeachers: React.FC = () => {
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 border-slate-200 dark:border-white/10"
+                className="flex-1 border-slate-200 dark:border-white/10 cursor-pointer"
                 onClick={() => handleDownloadCv(teacher.cvLink)}
               >
                 <Download className="w-4 h-4 mr-2" />

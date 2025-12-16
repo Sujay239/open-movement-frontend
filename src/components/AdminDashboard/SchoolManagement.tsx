@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -29,7 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   MoreHorizontal,
   Search,
-  School,
+  School as SchoolIcon, // Renamed to avoid conflict with interface
   Eye,
   Mail,
   Phone,
@@ -37,18 +37,20 @@ import {
   MapPin,
   CreditCard,
   Building2,
-  Lock,
-  X, // Added X icon for clear search
-  // Calendar,
+  // Lock,
+  X,
+  Loader2, // Added for loading state
 } from "lucide-react";
-import { toast } from "sonner";
+import { useAlert } from "../blocks/AlertProvider";
+// import { toast } from "sonner";
 
 // --- 1. TYPES ---
 type SubscriptionStatus = "NO_SUBSCRIPTION" | "ACTIVE" | "EXPIRED" | "TRIAL";
 type SubscriptionPlan = "MONTHLY" | "YEARLY" | "TRIAL_ACCESS" | null;
 
+// Matches your DB schema / API response
 interface School {
-  id: string;
+  id: string; // or number, depending on your DB. usually string/number safe in TS
   name: string;
   contact_name: string;
   email: string;
@@ -65,82 +67,59 @@ interface School {
   created_at: string;
 }
 
-// --- 2. DEMO DATA ---
-const demoSchools: School[] = [
-  {
-    id: "1",
-    name: "Riyadh International School",
-    contact_name: "Sarah Al-Fayed",
-    email: "hr@riyadh-intl.com",
-    website: "www.riyadh-intl.com",
-    country: "Saudi Arabia",
-    region: "Riyadh",
-    phone: "+966 11 456 7890",
-    address: "Al Olaya Dist, Riyadh 12211",
-    about: "A leading British curriculum school in the heart of Riyadh.",
-    subscription_status: "ACTIVE",
-    subscription_plan: "YEARLY",
-    subscription_started_at: "2024-01-15T00:00:00Z",
-    subscription_end_at: "2025-01-15T00:00:00Z",
-    created_at: "2023-12-01T10:00:00Z",
-  },
-  {
-    id: "2",
-    name: "Bangkok Prep",
-    contact_name: "John Smith",
-    email: "recruit@bkkprep.ac.th",
-    website: "www.bkkprep.ac.th",
-    country: "Thailand",
-    region: "Bangkok",
-    phone: "+66 2 123 4567",
-    address: "Sukhumvit 77, Bangkok",
-    subscription_status: "TRIAL",
-    subscription_plan: "TRIAL_ACCESS",
-    subscription_started_at: "2024-03-01T00:00:00Z",
-    subscription_end_at: "2024-03-02T00:00:00Z",
-    created_at: "2024-03-01T09:00:00Z",
-  },
-  {
-    id: "3",
-    name: "Dubai British School",
-    contact_name: "Emily Blunt",
-    email: "principal@dbs.ae",
-    website: "www.dbs.ae",
-    country: "UAE",
-    region: "Dubai",
-    subscription_status: "EXPIRED",
-    subscription_plan: "MONTHLY",
-    subscription_started_at: "2023-11-01T00:00:00Z",
-    subscription_end_at: "2023-12-01T00:00:00Z",
-    created_at: "2023-10-20T00:00:00Z",
-  },
-  {
-    id: "4",
-    name: "New Delhi Public School",
-    contact_name: "Raj Kumar",
-    email: "admin@ndps.in",
-    country: "India",
-    region: "Delhi",
-    subscription_status: "NO_SUBSCRIPTION",
-    subscription_plan: null,
-    created_at: "2024-02-15T00:00:00Z",
-  },
-];
+const openGmail = (email: string) => {
+  const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+    email
+  )}`;
+  window.open(url, "_blank");
+};
+
+const BASE_URL = import.meta.env?.VITE_BASE_URL;
 
 export default function SchoolManagement() {
-  const [schools, setSchools] = useState<School[]>(demoSchools);
+  // --- STATE ---
+  const [schools, setSchools] = useState<School[]>([]); // Data from API
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const {showError } = useAlert();
+
+  // --- 1. FETCH DATA ---
+  const fetchSchools = async () => {
+    setIsLoading(true);
+    try {
+      // Adjust URL if needed
+      const res = await fetch(`${BASE_URL}/admin/schools`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch schools");
+
+      const data = await res.json();
+      setSchools(data);
+    } catch (error) {
+      console.error(error);
+     showError("Failed to load schools data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSchools();
+  }, []);
 
   // --- Filter Logic ---
   const filteredSchools = schools.filter((s) => {
     const query = searchQuery.toLowerCase();
     return (
-      s.name.toLowerCase().includes(query) ||
-      s.email.toLowerCase().includes(query) ||
-      s.country?.toLowerCase().includes(query) ||
-      s.region?.toLowerCase().includes(query)
+      (s.name?.toLowerCase() || "").includes(query) ||
+      (s.email?.toLowerCase() || "").includes(query) ||
+      (s.country?.toLowerCase() || "").includes(query) ||
+      (s.region?.toLowerCase() || "").includes(query)
     );
   });
 
@@ -150,13 +129,13 @@ export default function SchoolManagement() {
     setIsViewModalOpen(true);
   };
 
-  const handleResetPassword = (email: string) => {
-    toast.success(`Password reset link sent to ${email}`);
-  };
+
 
   // --- Helpers ---
-  const getStatusBadge = (status: SubscriptionStatus) => {
-    switch (status) {
+  const getStatusBadge = (status: string) => {
+    // Normalize status just in case
+    const s = status?.toUpperCase();
+    switch (s) {
       case "ACTIVE":
         return (
           <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200">
@@ -192,7 +171,7 @@ export default function SchoolManagement() {
   };
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6  flex flex-col">
       {/* --- Header --- */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -200,7 +179,7 @@ export default function SchoolManagement() {
           <p className="text-muted-foreground">View registered schools.</p>
         </div>
 
-        {/* --- UPDATED SEARCH BAR --- */}
+        {/* --- SEARCH BAR --- */}
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -220,132 +199,63 @@ export default function SchoolManagement() {
         </div>
       </div>
 
-      {/* --- MOBILE VIEW (Cards) --- */}
-      <div className="grid grid-cols-1 gap-4 md:hidden">
-        {filteredSchools.length === 0 ? (
-          <div className="text-center p-8 border rounded-lg bg-muted/20 text-muted-foreground">
-            No schools found matching "{searchQuery}".
-          </div>
-        ) : (
-          filteredSchools.map((school) => (
-            <div
-              key={school.id}
-              className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold">{school.name}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {school.email}
-                  </p>
-                </div>
-                {getStatusBadge(school.subscription_status)}
-              </div>
-
-              <div className="text-sm text-muted-foreground space-y-2">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-3.5 w-3.5" />
-                  <span>
-                    {school.country} {school.region ? `(${school.region})` : ""}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-3.5 w-3.5" />
-                  <span>Plan: {school.subscription_plan || "None"}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t mt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleView(school)}
-                >
-                  View Details
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleView(school)}>
-                      <Eye className="mr-2 h-4 w-4" /> View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => handleResetPassword(school.email)}
-                    >
-                      <Lock className="mr-2 h-4 w-4" /> Reset Password
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        (window.location.href = `mailto:${school.email}`)
-                      }
-                    >
-                      <Mail className="mr-2 h-4 w-4" /> Email School
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* --- DESKTOP VIEW (Table) --- */}
-      <div className="hidden md:block rounded-md border bg-card flex-1 overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>School Name</TableHead>
-              <TableHead className="hidden md:table-cell">Contact</TableHead>
-              <TableHead className="hidden lg:table-cell">Location</TableHead>
-              <TableHead className="hidden md:table-cell">Plan</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64 border rounded-md bg-muted/10">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {/* --- MOBILE VIEW (Cards) --- */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
             {filteredSchools.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  No schools found matching "{searchQuery}".
-                </TableCell>
-              </TableRow>
+              <div className="text-center p-8 border rounded-lg bg-muted/20 text-muted-foreground">
+                No schools found matching "{searchQuery}".
+              </div>
             ) : (
               filteredSchools.map((school) => (
-                <TableRow key={school.id}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{school.name}</span>
-                      <span className="text-xs text-muted-foreground">
+                <div
+                  key={school.id}
+                  className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold">{school.name}</h3>
+                      <p className="text-xs text-muted-foreground">
                         {school.email}
+                      </p>
+                    </div>
+                    {getStatusBadge(school.subscription_status)}
+                  </div>
+
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span>
+                        {school.country}{" "}
+                        {school.region ? `(${school.region})` : ""}
                       </span>
                     </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {school.contact_name}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    {school.country} {school.region ? `(${school.region})` : ""}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <span className="font-mono text-xs">
-                      {school.subscription_plan || "-"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(school.subscription_status)}
-                  </TableCell>
-                  <TableCell className="text-right">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-3.5 w-3.5" />
+                      <span>Plan: {school.subscription_plan || "None"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t mt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleView(school)}
+                    >
+                      View Details
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -355,11 +265,6 @@ export default function SchoolManagement() {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() => handleResetPassword(school.email)}
-                        >
-                          <Lock className="mr-2 h-4 w-4" /> Reset Password
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
                           onClick={() =>
                             (window.location.href = `mailto:${school.email}`)
                           }
@@ -368,17 +273,102 @@ export default function SchoolManagement() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </div>
               ))
             )}
-          </TableBody>
-        </Table>
-      </div>
+          </div>
+
+          {/* --- DESKTOP VIEW (Table) --- */}
+          <div className="hidden md:block rounded-md border bg-card flex-1 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>School Name</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    Contact
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    Location
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">Plan</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSchools.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      No schools found matching "{searchQuery}".
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredSchools.map((school) => (
+                    <TableRow key={school.id}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{school.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {school.email}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {school.contact_name}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {school.country}{" "}
+                        {school.region ? `(${school.region})` : ""}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <span className="font-mono text-xs">
+                          {school.subscription_plan || "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(school.subscription_status)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0   cursor-pointer">
+                              <MoreHorizontal className="h-4 w-4 " />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleView(school)}
+                              className="cursor-pointer"
+                            >
+                              <Eye className="mr-2 h-4 w-4 " />{" "}
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem
+                              onClick={() => openGmail(school.email)}
+                              className="cursor-pointer"
+                            >
+                              <Mail className="mr-2 h-4 w-4 " /> Email School
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
 
       {/* --- VIEW DETAILS MODAL --- */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        {/* FIX: Use max-h-[85vh] and w-[95vw] to ensure it fits on mobile screens */}
         <DialogContent className="w-[95vw] sm:w-full sm:max-w-[700px] max-h-[85vh] p-0 flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
             <DialogTitle className="flex items-center gap-2">
@@ -390,7 +380,6 @@ export default function SchoolManagement() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* FIX: Replaced ScrollArea with native div scrolling for better mobile support */}
           {selectedSchool && (
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="space-y-8">
@@ -435,7 +424,11 @@ export default function SchoolManagement() {
                         Expiry Date
                       </Label>
                       <p
-                        className={`font-medium ${selectedSchool.subscription_status === "EXPIRED" ? "text-red-600" : ""}`}
+                        className={`font-medium ${
+                          selectedSchool.subscription_status === "EXPIRED"
+                            ? "text-red-600"
+                            : ""
+                        }`}
                       >
                         {formatDate(selectedSchool.subscription_end_at)}
                       </p>
@@ -453,7 +446,8 @@ export default function SchoolManagement() {
                     <div className="space-y-3 text-sm">
                       <div className="flex flex-col gap-1">
                         <span className="text-muted-foreground flex items-center">
-                          <School className="w-3.5 h-3.5 mr-2" /> Contact Person
+                          <SchoolIcon className="w-3.5 h-3.5 mr-2" /> Contact
+                          Person
                         </span>
                         <span className="font-medium">
                           {selectedSchool.contact_name}
@@ -481,7 +475,11 @@ export default function SchoolManagement() {
                         </span>
                         {selectedSchool.website ? (
                           <a
-                            href={`https://${selectedSchool.website}`}
+                            href={
+                              selectedSchool.website.startsWith("http")
+                                ? selectedSchool.website
+                                : `https://${selectedSchool.website}`
+                            }
                             target="_blank"
                             rel="noreferrer"
                             className="text-blue-600 hover:underline break-all"

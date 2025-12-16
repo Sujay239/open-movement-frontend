@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   PanelsTopLeft,
+  User2,
 } from "lucide-react";
 
 // 👇 Update this path to where your ModeToggle is located
@@ -26,6 +27,7 @@ const sidebarItems = [
   { title: "Schools", href: "/admin/schools", icon: School },
   { title: "Access Codes", href: "/admin/access-codes", icon: Key },
   { title: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { title: "Add Admin", href: "/admin/new", icon: User2 },
 ];
 
 const BASE_URL = import.meta.env?.VITE_BASE_URL;

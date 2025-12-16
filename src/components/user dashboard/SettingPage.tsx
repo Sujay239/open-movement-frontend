@@ -20,7 +20,7 @@ import {
   MapPin,
   Globe,
   Save,
-  Camera,
+  // Camera,
   Lock,
   // Bell,
   Shield,
@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
+import { useAlert } from "../blocks/AlertProvider";
 
 const BASE_URL = import.meta.env?.VITE_BASE_URL ?? "";
 
@@ -47,7 +48,7 @@ type SchoolProfile = {
   address?: string | null;
   city?: string | null;
   phone?: string | null;
-  description?: string | null;
+  about?: string | null;
   website? : string | null;
 };
 
@@ -69,7 +70,7 @@ export const SettingsPage: React.FC = () => {
     address: "",
     city: "",
     phone: "",
-    description: "",
+    about: "",
     website : ""
   });
 
@@ -93,6 +94,7 @@ export const SettingsPage: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const {showError , showSuccess} = useAlert();
 
   // animation
   useGSAP(
@@ -140,7 +142,7 @@ export const SettingsPage: React.FC = () => {
           name: data.name ?? "",
           contact_name: data.contact_name ?? "",
           email: data.email ?? "",
-          description: data.description ?? "",
+          description: data.about ?? "",
           address: data.address ?? "",
           city: data.city ?? "",
           country: data.country ?? "",
@@ -155,7 +157,7 @@ export const SettingsPage: React.FC = () => {
         setFormData(mapped);
       } catch (err: any) {
         console.error(err);
-        alert(err?.message ?? "Failed to load profile");
+        showError(err?.message ?? "Failed to load profile");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -211,17 +213,17 @@ export const SettingsPage: React.FC = () => {
       }
 
       const data = await res.json().catch(() => ({}));
-      // update local profile with returned data if provided
+
       if (data) {
         setProfile((p) => ({ ...p, ...data }));
       }
 
       // reflect saved values (in case server normalized)
       setFormData((prev) => ({ ...prev, ...payload }));
-      alert(data?.message ?? "Profile saved successfully");
+      showSuccess(data?.message ?? "Profile saved successfully");
     } catch (err: any) {
       console.error("Save error:", err);
-      alert(err?.message ?? "Failed to save profile");
+      showError(err?.message ?? "Failed to save profile");
     } finally {
       setSaving(false);
     }
@@ -230,11 +232,11 @@ export const SettingsPage: React.FC = () => {
   // password change
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword) {
-      alert("Please fill current and new password fields.");
+      showError("Please fill current and new password fields.");
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      alert("New password and confirm password do not match.");
+      showError("New password and confirm password do not match.");
       return;
     }
 
@@ -261,7 +263,7 @@ export const SettingsPage: React.FC = () => {
       }
 
       const data = await res.json().catch(() => ({}));
-      alert(data?.message ?? "Password updated successfully");
+      showSuccess(data?.message ?? "Password updated successfully");
 
       // clear password fields
       setCurrentPassword("");
@@ -269,7 +271,7 @@ export const SettingsPage: React.FC = () => {
       setConfirmNewPassword("");
     } catch (err: any) {
       console.error("Password change error:", err);
-      alert(err?.message ?? "Failed to change password");
+      showError(err?.message ?? "Failed to change password");
     } finally {
       setSavingPassword(false);
     }
@@ -294,7 +296,7 @@ export const SettingsPage: React.FC = () => {
           className={`min-w-40 transition-all duration-300 ${
             saving
               ? "bg-blue-500/80 text-white"
-              : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
+              : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 cursor-pointer"
           }`}
         >
           {saving ? (
@@ -325,14 +327,6 @@ export const SettingsPage: React.FC = () => {
                     {formData.name?.charAt(0) ?? "S"}
                   </AvatarFallback>
                 </Avatar>
-
-                {/* Hover overlay */}
-                <div
-                  className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100
-                        flex items-center justify-center transition-all cursor-pointer"
-                >
-                  <Camera className="w-7 h-7 text-white" />
-                </div>
               </div>
 
               {/* Title + Meta Info */}
@@ -507,7 +501,7 @@ export const SettingsPage: React.FC = () => {
                     id="current-pass"
                     type="password"
                     placeholder="••••••••"
-                    value={currentPassword}
+                    value={""}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     className="pl-9 bg-slate-50 dark:bg-zinc-950/50"
                   />
@@ -543,7 +537,7 @@ export const SettingsPage: React.FC = () => {
               </div>
               <Button
                 variant="outline"
-                className="w-full mt-2"
+                className="w-full mt-2 cursor-pointer"
                 onClick={handleChangePassword}
                 disabled={savingPassword}
               >

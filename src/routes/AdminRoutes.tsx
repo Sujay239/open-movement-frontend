@@ -8,6 +8,7 @@ import TeacherManagement from "@/components/AdminDashboard/TeacherManagement";
 import SchoolManagement from "@/components/AdminDashboard/SchoolManagement";
 import AccessCodes from "@/components/AdminDashboard/AccessCode";
 import AdminAnalytics from "@/components/AdminDashboard/AdminAnalytics";
+import AddAdminDialog from "@/components/AdminDashboard/AddAdmin";
 
 export const adminRoutes: RouteObject = {
   path: "/admin",
@@ -42,10 +43,15 @@ export const adminRoutes: RouteObject = {
       path: "access-codes",
       element: <AccessCodes />,
     },
-    
+
     {
       path: "analytics",
       element: <AdminAnalytics />,
     },
+
+    {
+      path : 'new',
+      element : <AddAdminDialog />
+    }
   ],
 };

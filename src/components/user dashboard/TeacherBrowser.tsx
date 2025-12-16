@@ -1,5 +1,5 @@
-// TeacherBrowser.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ import {
   ArrowRight,
   User,
   GraduationCap,
+  Lock,
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -43,21 +44,21 @@ import iso3166_2 from "iso-3166-2.json";
 
 const BASE_URL = import.meta.env?.VITE_BASE_URL ?? "";
 
-// initial mock teachers
 const INITIAL_TEACHERS: any[] = [];
 
 export default function TeacherBrowser() {
   const container = useRef<HTMLDivElement | null>(null);
 
-  // component state
+  // --- STATE ---
   const [teachers, setTeachers] =
     useState<typeof INITIAL_TEACHERS>(INITIAL_TEACHERS);
   const [loading, setLoading] = useState<boolean>(false);
-  // const [error, setError] = useState<string | null>(null);
-  const {showError } = useAlert();
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(
+    null
+  ); // Local state for status
+  const { showError } = useAlert();
   const [query, setQuery] = useState<string>("");
 
-  // compute country names once
   const COUNTRY_NAMES = useMemo(() => {
     const names: string[] = [];
     for (const code in iso3166_2) {
@@ -67,7 +68,6 @@ export default function TeacherBrowser() {
     return names.sort();
   }, []);
 
-  // GSAP animation
   useGSAP(
     () => {
       gsap.fromTo(
@@ -86,86 +86,83 @@ export default function TeacherBrowser() {
     { scope: container }
   );
 
-  // fetch remote teachers
+  // --- 1. FETCH SUBSCRIPTION STATUS & TEACHERS ---
   useEffect(() => {
     let mounted = true;
-    async function loadTeachers() {
+
+    async function loadData() {
       if (!BASE_URL) return;
       setLoading(true);
+
       try {
-        const res = await fetch(`${BASE_URL}/portal/teachers`, {
+        // A. Fetch Subscription Status
+        const statusRes = await fetch(`${BASE_URL}/subscription/status`, {
           method: "GET",
           credentials: "include",
-          headers: {
-            Accept: "application/json",
-          },
+          headers: { Accept: "application/json" },
         });
 
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`Server responded ${res.status}: ${text}`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (mounted) {
+            // Sets 'ACTIVE', 'TRIAL', 'EXPIRED', etc.
+            setSubscriptionStatus(statusData.subscription_status);
+          }
         }
 
-        const data = await res.json();
+        // B. Fetch Teachers
+        const teachersRes = await fetch(`${BASE_URL}/portal/teachers`, {
+          method: "GET",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!teachersRes.ok) {
+          const text = await teachersRes.text().catch(() => "");
+          throw new Error(`Server responded ${teachersRes.status}: ${text}`);
+        }
+
+        const data = await teachersRes.json();
 
         if (!mounted) return;
 
-        if (Array.isArray(data)) {
-          const mapped = data.map((teacher: any) => ({
-            id: teacher.id,
-            code:
-              teacher.teacher_code ??
-              `remote-${Math.random().toString(36).slice(2, 9)}`,
-            subject:
-              teacher.highest_qualification ?? teacher.subject ?? "Unknown",
-            level: teacher.level ?? "Senior",
-            exp: teacher.years_experience
-              ? `${teacher.years_experience} Years`
-              : "N/A",
-            location: teacher.current_country ?? teacher.location ?? "Unknown",
-            visa: teacher.visa_status ?? "Unknown",
-            bio: teacher.bio ?? "No bio available.",
-          }));
+        const mapTeacher = (t: any) => ({
+          id: t.id,
+          code:
+            t.teacher_code ??
+            `remote-${Math.random().toString(36).slice(2, 9)}`,
+          subject: t.highest_qualification ?? t.subject ?? "Unknown",
+          level: t.level ?? "Senior",
+          exp: t.years_experience ? `${t.years_experience} Years` : "N/A",
+          location: t.current_country ?? t.location ?? "Unknown",
+          visa: t.visa_status ?? "Unknown",
+          bio: t.bio ?? "No bio available.",
+        });
 
+        if (Array.isArray(data)) {
+          const mapped = data.map(mapTeacher);
           setTeachers((prev) => {
             const existingIds = new Set(prev.map((t) => t.id));
             const toAdd = mapped.filter((m) => !existingIds.has(m.id));
             return [...prev, ...toAdd];
           });
         } else if (data?.data && Array.isArray(data.data)) {
-          const mapped = data.data.map((teacher: any) => ({
-            id:
-              teacher.teacher_code ??
-              `remote-${Math.random().toString(36).slice(2, 9)}`,
-            subject:
-              teacher.highest_qualification ?? teacher.subject ?? "Unknown",
-            level: teacher.level ?? "Senior",
-            exp: teacher.years_experience
-              ? `${teacher.years_experience} Years`
-              : "N/A",
-            location: teacher.current_country ?? teacher.location ?? "Unknown",
-            visa: teacher.visa_status ?? "Unknown",
-            bio: teacher.bio ?? "No bio available.",
-          }));
-
+          const mapped = data.data.map(mapTeacher);
           setTeachers((prev) => {
             const existingIds = new Set(prev.map((t) => t.id));
             const toAdd = mapped.filter((m: any) => !existingIds.has(m.id));
             return [...prev, ...toAdd];
           });
-        } else {
-          console.warn("Unexpected teacher API response shape", data);
         }
       } catch (err: any) {
-        console.error("Failed to load teachers", err);
-        if (mounted) showError(err.message ?? "Failed to load teachers");
+        console.error("Failed to load data", err);
+        if (mounted) showError(err.message ?? "Failed to load data");
       } finally {
         if (mounted) setLoading(false);
       }
     }
 
-    loadTeachers();
-
+    loadData();
     return () => {
       mounted = false;
     };
@@ -239,46 +236,63 @@ export default function TeacherBrowser() {
         </div>
       </div>
 
-      {/* Loading / Error */}
       {loading && (
         <div className="text-sm text-slate-500">Loading teachers…</div>
       )}
 
-      {/* Results Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filtered.map((teacher) => (
-          <TeacherCard key={teacher.id} data={teacher} />
+          <TeacherCard
+            key={teacher.id}
+            data={teacher}
+            subscriptionStatus={subscriptionStatus} // Pass the fetched status
+          />
         ))}
       </div>
     </div>
   );
 }
 
-/* --- TEACHER CARD COMPONENT --- */
-function TeacherCard({ data }: { data: any }) {
-  // --- New States for Request Box ---
+// --- TEACHER CARD COMPONENT ---
+function TeacherCard({
+  data,
+  subscriptionStatus,
+}: {
+  data: any;
+  subscriptionStatus: string | null;
+}) {
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const {showError,showSuccess} = useAlert();
+  const { showError, showSuccess } = useAlert();
+  const navigate = useNavigate();
 
-  // --- API Handler ---
+  // 2. CHECK STATUS: If not 'ACTIVE', restrict access
+  const isRestricted = subscriptionStatus !== "ACTIVE";
+
+  const handleRequestClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isRestricted) {
+      navigate("/school/subscription");
+    } else {
+      setIsRequestOpen(true);
+    }
+  };
+
   async function confirmRequest() {
     setIsSubmitting(true);
     try {
       const res = await fetch(`${BASE_URL}/requests/teachers/${data.id}`, {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: message }),
       });
 
       if (res.ok) {
         setIsRequestOpen(false);
         setMessage("");
-        showSuccess("Request send sucessfully.");
+        showSuccess("Request sent successfully.");
       } else {
         const text = await res.text();
         console.error("Failed to send request:", text);
@@ -291,9 +305,20 @@ function TeacherCard({ data }: { data: any }) {
     }
   }
 
+  async function trackView(teacherId: string) {
+    try {
+      await fetch(`${BASE_URL}/school/track-view/${teacherId}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (error) {
+      console.error("Failed to track view:", error);
+    }
+  }
+
   return (
     <>
-      {/* 1. Request Message Dialog (The popup box) */}
       <Dialog open={isRequestOpen} onOpenChange={setIsRequestOpen}>
         <DialogContent className="sm:max-w-[425px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-white/10 z-200">
           <DialogHeader>
@@ -337,7 +362,6 @@ function TeacherCard({ data }: { data: any }) {
         </DialogContent>
       </Dialog>
 
-      {/* 2. Main Profile Dialog (Wraps the Card) */}
       <Dialog>
         <Card className="teacher-card group relative overflow-hidden bg-white dark:bg-zinc-900/40 border border-slate-200 dark:border-white/10 backdrop-blur-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-500/10 flex flex-col h-full rounded-3xl">
           <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -389,6 +413,7 @@ function TeacherCard({ data }: { data: any }) {
           <CardFooter className="pt-0 pb-6 px-6 gap-3">
             <DialogTrigger asChild>
               <Button
+                onClick={() => trackView(data.id)}
                 variant="outline"
                 className="flex-1 h-11 border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 font-medium rounded-xl transition-all cursor-pointer hover:scale-105"
               >
@@ -396,12 +421,23 @@ function TeacherCard({ data }: { data: any }) {
               </Button>
             </DialogTrigger>
 
-            {/* Button triggers the Request Dialog State */}
+            {/* RESTRICTED BUTTON UI */}
             <Button
-              onClick={() => setIsRequestOpen(true)}
-              className="flex-1 h-11 bg-white text-white dark:text-slate-900 hover:text-white transition-all shadow-lg hover:shadow-blue-500/25 rounded-xl font-semibold cursor-pointer hover:scale-110 hover:bg-green-400"
+              onClick={handleRequestClick}
+              className={`flex-1 h-11 transition-all shadow-lg rounded-xl font-semibold cursor-pointer hover:scale-110
+                ${
+                  isRestricted
+                    ? "bg-slate-200 dark:bg-zinc-800 text-slate-500 hover:bg-slate-300 dark:hover:bg-zinc-700"
+                    : "bg-white text-slate-900 dark:text-slate-900 hover:text-white hover:bg-green-400 hover:shadow-blue-500/25"
+                }`}
             >
-              Request Full Profile
+              {isRestricted ? (
+                <>
+                  <Lock className="w-4 h-4 mr-2" /> Upgrade
+                </>
+              ) : (
+                "Request Full Profile"
+              )}
             </Button>
           </CardFooter>
         </Card>
@@ -440,7 +476,6 @@ function TeacherCard({ data }: { data: any }) {
                       <span>{data.level} Level</span>
                     </DialogDescription>
                   </div>
-
                   <div className="self-start flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full border border-green-100 dark:border-green-900/30">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -497,16 +532,26 @@ function TeacherCard({ data }: { data: any }) {
                   </Button>
                 </DialogClose>
 
-                {/* Button triggers the Request Dialog State */}
+                {/* RESTRICTED BUTTON UI INSIDE MODAL */}
                 <Button
-                  className="w-full sm:w-auto h-12 rounded-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/20 text-base font-semibold group order-1 sm:order-2 cursor-pointer hover:scale-105 transition-transform"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsRequestOpen(true);
-                  }}
+                  className={`w-full sm:w-auto h-12 rounded-xl text-base font-semibold group order-1 sm:order-2 cursor-pointer transition-transform
+                    ${
+                      isRestricted
+                        ? "bg-slate-200 dark:bg-zinc-800 text-slate-400 hover:bg-slate-300 dark:hover:bg-zinc-700"
+                        : "bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg shadow-blue-500/20 hover:scale-105"
+                    }`}
+                  onClick={handleRequestClick}
                 >
-                  Request Full Profile
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  {isRestricted ? (
+                    <>
+                      <Lock className="w-4 h-4 mr-2" /> Upgrade to Request
+                    </>
+                  ) : (
+                    <>
+                      Request Full Profile
+                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </div>
@@ -517,7 +562,6 @@ function TeacherCard({ data }: { data: any }) {
   );
 }
 
-/* Helper */
 function DetailItem({
   icon,
   label,

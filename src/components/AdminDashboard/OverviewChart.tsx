@@ -9,18 +9,18 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const data = [
-  { name: "Jan", teachers: 12, schools: 4 },
-  { name: "Feb", teachers: 28, schools: 8 },
-  { name: "Mar", teachers: 25, schools: 12 },
-  { name: "Apr", teachers: 45, schools: 18 },
-  { name: "May", teachers: 35, schools: 24 },
-  { name: "Jun", teachers: 60, schools: 35 },
-];
+// 1. Accept data prop
+export function OverviewChart({ data }: { data: any[] }) {
+  // If data is empty (loading or no data), showing an empty state or loading skeleton is good UX
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground text-sm">
+        Loading chart data...
+      </div>
+    );
+  }
 
-export function OverviewChart() {
   return (
-    // Height is fixed to 350px to prevent layout shift
     <div className="h-[300px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
@@ -80,6 +80,7 @@ export function OverviewChart() {
           <Area
             type="monotone"
             dataKey="teachers"
+            name="Teachers"
             stroke="gray"
             strokeWidth={2}
             fillOpacity={1}
@@ -88,6 +89,7 @@ export function OverviewChart() {
           <Area
             type="monotone"
             dataKey="schools"
+            name="Schools"
             stroke="#10b981"
             strokeWidth={2}
             fillOpacity={1}

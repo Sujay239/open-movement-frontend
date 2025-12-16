@@ -14,6 +14,9 @@ import {
   Sparkles,
   Zap,
   AlertCircle,
+  Key,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +27,12 @@ import {
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ModeToggle } from "@/components/mode-toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
@@ -32,6 +41,7 @@ const navItems = [
   { label: "Browse Teachers", href: "/school/dashboard", icon: Users },
   { label: "My Requests", href: "/school/requests", icon: FileText },
   { label: "Accepted Teachers", href: "/school/accepted", icon: UserStar },
+  { label: "Use Access Code", href: "/school/access-code", icon: Key },
   { label: "Subscription", href: "/school/subscription", icon: CreditCard },
   { label: "School Settings", href: "/school/settings", icon: Settings },
   { label: "Help & Support", href: "/school/support", icon: LifeBuoy },
@@ -43,49 +53,52 @@ export default function SchoolLayout() {
   const location = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  // Sidebar State
+  const [isExpanded, setIsExpanded] = useState(true);
+
   // School / profile info
   const [school, setSchool] = useState<{ user: string; name: string }>({
     user: "",
     name: "",
   });
 
-  // subscription info
+  // Subscription info
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(
     null
   );
 
-  // --- TRIAL COUNTDOWN STATE ---
+  // Trial countdown state
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [trialLoading, setTrialLoading] = useState<boolean>(true);
   const [trialError, setTrialError] = useState<string | null>(null);
 
-  // Animation for desktop sidebar entrance
+  // Animation for sidebar items
   useGSAP(
     () => {
-      gsap.fromTo(
-        ".sidebar-item",
-        { x: -20, opacity: 0 },
-        { x: 0, opacity: 1, duration: 0.5, stagger: 0.1, ease: "power2.out" }
-      );
+      if (isExpanded) {
+        gsap.fromTo(
+          ".sidebar-text",
+          { opacity: 0, x: -10 },
+          { opacity: 1, x: 0, duration: 0.3, stagger: 0.05, ease: "power2.out" }
+        );
+      }
     },
-    { scope: sidebarRef }
+    { scope: sidebarRef, dependencies: [isExpanded] }
   );
 
-  // Fetch profile (auth/me) AND subscription status once on mount
+  // --- FETCH DATA ---
   useEffect(() => {
     let mounted = true;
     let ticker: number | null = null;
 
     async function loadProfileAndStatus() {
-      // Load profile (/auth/me)
       try {
         const profileRes = await fetch(`${BASE_URL}/auth/me`, {
           method: "GET",
           credentials: "include",
           headers: { Accept: "application/json" },
         });
-
         if (profileRes.ok) {
           const pdata = await profileRes.json();
           if (!mounted) return;
@@ -93,16 +106,13 @@ export default function SchoolLayout() {
             user: pdata.contact_name ?? "",
             name: pdata.name ?? "",
           });
-
-          if (pdata.subscription_plan) {
+          if (pdata.subscription_plan)
             setSubscriptionPlan(pdata.subscription_plan);
-          }
         }
       } catch (err) {
         console.error("Error loading profile:", err);
       }
 
-      // Load subscription status
       try {
         setTrialLoading(true);
         const statusRes = await fetch(`${BASE_URL}/subscription/status`, {
@@ -111,18 +121,12 @@ export default function SchoolLayout() {
           headers: { Accept: "application/json" },
         });
 
-        if (!statusRes.ok) {
-          throw new Error(`Status fetch failed: ${statusRes.status}`);
-        }
-
+        if (!statusRes.ok) throw new Error("Status fetch failed");
         const sdata = await statusRes.json();
 
         if (!mounted) return;
-
-        if (sdata.subscription_plan) {
+        if (sdata.subscription_plan)
           setSubscriptionPlan(sdata.subscription_plan);
-        }
-
         setSubscriptionStatus(sdata.subscription_status ?? null);
 
         const endIso = sdata.subscription_end_at ?? null;
@@ -133,50 +137,35 @@ export default function SchoolLayout() {
         }
 
         const endMs = new Date(endIso).getTime();
-        if (!isFinite(endMs)) {
-          setRemainingMs(null);
-          setTrialError("Invalid expiry date");
+        if (isFinite(endMs)) {
+          const diff = Math.max(0, endMs - Date.now());
+          setRemainingMs(diff);
           setTrialLoading(false);
-          return;
+          setTrialError(null);
+
+          if (ticker) clearInterval(ticker);
+          ticker = window.setInterval(() => {
+            setRemainingMs((prev) => {
+              if (prev === null) return null;
+              const next = prev - 1000;
+              return next <= 0 ? 0 : next;
+            });
+          }, 1000);
+        } else {
+          setRemainingMs(null);
+          setTrialLoading(false);
         }
-
-        // initialize tick
-        const diff = Math.max(0, endMs - Date.now());
-        setRemainingMs(diff);
-        setTrialLoading(false);
-        setTrialError(null);
-
-        if (ticker) {
-          window.clearInterval(ticker);
-          ticker = null;
-        }
-
-        ticker = window.setInterval(() => {
-          setRemainingMs((prev) => {
-            if (prev === null) return null;
-            const next = prev - 1000;
-            if (next <= 0) {
-              if (ticker) {
-                window.clearInterval(ticker);
-                ticker = null;
-              }
-              return 0;
-            }
-            return next;
-          });
-        }, 1000);
       } catch (err: any) {
         if (!mounted) return;
-        setTrialError(err?.message ?? "Failed to load trial info");
+        setTrialError(err?.message);
         setTrialLoading(false);
       }
     }
 
     loadProfileAndStatus();
-
     return () => {
       mounted = false;
-      if (ticker) window.clearInterval(ticker);
+      if (ticker) clearInterval(ticker);
     };
   }, []);
 
@@ -192,21 +181,27 @@ export default function SchoolLayout() {
       {/* 1. DESKTOP SIDEBAR */}
       <aside
         ref={sidebarRef}
-        className="hidden lg:flex flex-col w-72 border-r border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-900/50 backdrop-blur-xl h-screen sticky top-0 z-50"
+        className={`
+          hidden lg:flex flex-col border-r border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-900/50 backdrop-blur-xl h-screen sticky top-0 z-50
+          transition-all duration-300 ease-in-out
+          ${isExpanded ? "w-72" : "w-20"}
+        `}
       >
         <SidebarContent
           location={location}
+          isExpanded={isExpanded}
           remainingMs={remainingMs}
           trialLoading={trialLoading}
           trialError={trialError}
           planLabel={getPlanLabel()}
           subscriptionStatus={subscriptionStatus}
+          onToggle={() => setIsExpanded(!isExpanded)}
         />
       </aside>
 
-      {/* 2. MAIN CONTENT WRAPPER */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Top Header */}
+      {/* 2. MAIN CONTENT */}
+      <main className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+        {/* Header */}
         <header className="h-16 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Sheet>
@@ -222,6 +217,7 @@ export default function SchoolLayout() {
                 <SidebarContent
                   location={location}
                   isMobile={true}
+                  isExpanded={true}
                   remainingMs={remainingMs}
                   trialLoading={trialLoading}
                   trialError={trialError}
@@ -259,7 +255,7 @@ export default function SchoolLayout() {
           </div>
         </header>
 
-        {/* 3. THE OUTLET */}
+        {/* Content */}
         <div className="flex-1 p-4 lg:p-8 overflow-y-auto overflow-x-hidden">
           <Outlet />
         </div>
@@ -268,25 +264,29 @@ export default function SchoolLayout() {
   );
 }
 
-// --- REUSABLE SIDEBAR COMPONENT ---
+// --- SIDEBAR CONTENT ---
 function SidebarContent({
   location,
   isMobile = false,
+  isExpanded = true,
   remainingMs,
   trialLoading,
-  trialError,
+  // trialError,
   planLabel,
   subscriptionStatus,
+  onToggle,
 }: {
   location: any;
   isMobile?: boolean;
+  isExpanded?: boolean;
   remainingMs?: number | null;
   trialLoading?: boolean;
   trialError?: string | null;
   planLabel?: string | null;
   subscriptionStatus?: string | null;
+  onToggle?: () => void;
 }) {
-  // Determine plan type
+  // Plan Logic
   const getPlanType = (label?: string | null, status?: string | null) => {
     const l = label?.toLowerCase() ?? "";
     if (l.includes("ultimate") || l.includes("enterprise")) return "ultimate";
@@ -299,27 +299,24 @@ function SidebarContent({
 
   const planType = getPlanType(planLabel, subscriptionStatus);
 
-  // --- IMPROVED CARD STYLING ---
   const getCardStyles = (type: string) => {
     switch (type) {
       case "ultimate":
         return {
-          // Dark, sleek, premium gold accents
           container:
-            "relative bg-zinc-900 border border-zinc-800 shadow-xl overflow-hidden",
+            "relative bg-red-950 border border-red-900 shadow-xl overflow-hidden",
           bgEffect:
-            "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-900/40 via-zinc-900 to-zinc-950",
-          iconBg: "bg-amber-500/10 text-amber-500",
+            "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-900/50 via-red-950 to-black",
+          iconBg: "bg-red-500/10 text-red-500",
           title: "text-white",
-          subtitle: "text-zinc-400",
-          counter: "text-amber-500",
-          button: "bg-amber-600 hover:bg-amber-700 text-white border-0",
+          subtitle: "text-red-300/70",
+          counter: "text-red-500",
+          button: "bg-red-600 hover:bg-red-700 text-white border-0",
           icon: Sparkles,
           upgradeDisabled: true,
         };
       case "pro":
         return {
-          // Vibrant Blue/Purple Gradient - The "SaaS Pro" look
           container:
             "relative bg-blue-600 border border-blue-500 shadow-lg shadow-blue-500/20 overflow-hidden",
           bgEffect:
@@ -334,7 +331,6 @@ function SidebarContent({
         };
       case "trial":
         return {
-          // Attention-grabbing but clean. White/Dark card with colored border.
           container:
             "relative bg-white dark:bg-zinc-900 border-2 border-amber-400/60 dark:border-amber-500/40 shadow-sm",
           bgEffect: "bg-amber-50/50 dark:bg-amber-900/10",
@@ -349,7 +345,6 @@ function SidebarContent({
           upgradeDisabled: false,
         };
       default:
-        // Generic fallback
         return {
           container:
             "relative bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-white/10",
@@ -370,6 +365,7 @@ function SidebarContent({
   const styles = getCardStyles(planType);
   const Icon = styles.icon;
 
+  // --- TIME FORMAT HELPER (RESTORED) ---
   const formatRemaining = (ms?: number | null) => {
     if (ms === undefined || ms === null) return "—";
     if (ms <= 0) return "Expired";
@@ -380,155 +376,229 @@ function SidebarContent({
     totalSeconds %= 3600;
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
+
+    // Format: Xd HH:MM:SS or HH:MM:SS
     const pad = (n: number) => String(n).padStart(2, "0");
     if (days > 0)
       return `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
   };
 
-  async function handleLogout(
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ) {
-    event.preventDefault();
+  async function handleLogout(e: React.MouseEvent) {
+    e.preventDefault();
     try {
       await fetch(`${BASE_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error(error);
     }
-
     window.location.href = "/";
   }
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Brand Logo */}
-      <div className="p-6 flex items-center gap-2 border-b border-slate-100 dark:border-white/5">
-        <div className="bg-blue-600/10 p-2 rounded-lg">
-          <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-        </div>
-        <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white">
-          School Access
-        </span>
-      </div>
+  const renderNavLink = (item: any) => {
+    const isActive =
+      item.href === "/school"
+        ? location.pathname === "/school"
+        : location.pathname.startsWith(item.href);
 
-      {/* Navigation Links */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/school"
-              ? location.pathname === "/school"
-              : location.pathname.startsWith(item.href);
-
-          const LinkComponent = (
+    return (
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
             <Link
               to={item.href}
-              className={`sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+              className={`sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
+              ${
                 isActive
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
                   : "text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-              }`}
+              }
+              ${!isExpanded ? "justify-center px-2" : ""}
+            `}
             >
               <item.icon
-                className={`w-5 h-5 ${
+                className={`w-5 h-5 shrink-0 transition-colors ${
                   isActive
                     ? "text-white"
-                    : "text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
+                    : "text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400"
                 }`}
               />
-              <span className="font-medium">{item.label}</span>
+              {isExpanded && (
+                <span className="font-medium whitespace-nowrap overflow-hidden sidebar-text">
+                  {item.label}
+                </span>
+              )}
             </Link>
-          );
+          </TooltipTrigger>
+          {!isExpanded && !isMobile && (
+            <TooltipContent side="right" className="font-semibold ml-2">
+              {item.label}
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
 
-          return isMobile ? (
-            <SheetClose asChild key={item.href}>
-              {LinkComponent}
-            </SheetClose>
-          ) : (
-            <React.Fragment key={item.href}>{LinkComponent}</React.Fragment>
-          );
-        })}
-      </nav>
-
-      {/* Subscription Widget */}
-      <div className="p-4 sidebar-item mt-auto">
-        <div className={`rounded-2xl p-5 ${styles.container}`}>
-          {/* Background Effect Layer */}
-          <div className={`absolute inset-0 ${styles.bgEffect}`} />
-
-          <div className="relative z-10">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex flex-col">
-                <span
-                  className={`text-xs font-bold uppercase tracking-wider opacity-90 ${styles.title}`}
-                >
-                  {planLabel ?? "Current Plan"}
-                </span>
-                <span className={`text-[10px] font-medium ${styles.subtitle}`}>
-                  {subscriptionStatus
-                    ? subscriptionStatus.replace("_", " ")
-                    : "Status Unknown"}
-                </span>
-              </div>
-              <div className={`p-1.5 rounded-lg ${styles.iconBg}`}>
-                <Icon className="w-4 h-4" />
-              </div>
-            </div>
-
-            <div className="space-y-1 my-4">
-              <span
-                className={`text-[10px] uppercase font-semibold opacity-80 ${styles.subtitle}`}
-              >
-                {remainingMs === null
-                  ? "Validity"
-                  : remainingMs > 0
-                    ? "Expires in"
-                    : "Status"}
-              </span>
-              <p
-                className={`text-2xl font-mono font-bold tracking-tight ${styles.counter}`}
-              >
-                {trialLoading ? (
-                  <span className="animate-pulse">...</span>
-                ) : (
-                  formatRemaining(remainingMs)
-                )}
-              </p>
-            </div>
-
-            {trialError ? (
-              <p className="mt-2 text-xs text-red-500 bg-red-500/10 p-1 rounded">
-                Error loading info
-              </p>
-            ) : (
-              <Button
-                size="sm"
-                className={`w-full h-9 text-xs font-bold shadow-sm transition-transform active:scale-95 ${styles.button}`}
-                disabled={styles.upgradeDisabled}
-                onClick={() => {
-                  if (styles.upgradeDisabled) return;
-                  window.location.href = "/school/subscription";
-                }}
-              >
-                {styles.upgradeDisabled ? "Plan Active" : "Upgrade Plan"}
-              </Button>
-            )}
+  return (
+    <div className="flex flex-col h-full">
+      {/* 1. Logo Section */}
+      <div
+        className={`p-6 flex items-center ${
+          isExpanded ? "justify-between" : "justify-center"
+        } border-b border-slate-100 dark:border-white/5 h-20 transition-all duration-300`}
+      >
+        <div className="flex items-center gap-4">
+          <div className="bg-blue-600/10 p-2 rounded-lg transition-transform hover:scale-105">
+            <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
+          {isExpanded && (
+            <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white sidebar-text">
+              School Access
+            </span>
+          )}
+
+          {/* SIDEBAR TOGGLE BUTTON */}
+          {!isMobile && onToggle && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggle}
+              className={` mt-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ${
+                isExpanded ? "justify-end" : "justify-center"
+              }`}
+            >
+              {isExpanded ? (
+                <ChevronLeft className="w-5 h-5" />
+              ) : (
+                <ChevronRight className="w-5 h-5" />
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-slate-100 dark:border-white/5">
-        <Button
-          variant="ghost"
-          className="w-[95%] justify-start text-red-500 hover:bg-red-500 hover:text-white cursor-pointer transition-all duration-300 hover:scale-110"
-          onClick={handleLogout}
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          Log Out
-        </Button>
+      {/* 2. Navigation */}
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden">
+        {navItems.map((item) =>
+          isMobile ? (
+            <SheetClose asChild key={item.href}>
+              {renderNavLink(item)}
+            </SheetClose>
+          ) : (
+            <React.Fragment key={item.href}>
+              {renderNavLink(item)}
+            </React.Fragment>
+          )
+        )}
+      </nav>
+
+      {/* 3. Subscription Widget (Hidden if Collapsed) */}
+      <div className="p-4 mt-auto">
+        {isExpanded ? (
+          // FULL WIDGET WITH TIMER RESTORED
+          <div className={`rounded-2xl p-5 ${styles.container} sidebar-text`}>
+            <div className={`absolute inset-0 ${styles.bgEffect}`} />
+            <div className="relative z-10">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex flex-col">
+                  <span
+                    className={`text-xs font-bold uppercase tracking-wider opacity-90 ${styles.title}`}
+                  >
+                    {planLabel ?? "Current Plan"}
+                  </span>
+                  <span
+                    className={`text-[10px] font-medium ${styles.subtitle}`}
+                  >
+                    {subscriptionStatus
+                      ? subscriptionStatus.replace("_", " ")
+                      : "Status Unknown"}
+                  </span>
+                </div>
+                <div className={`p-1.5 rounded-lg ${styles.iconBg}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* TIMER DISPLAY */}
+              <div className="space-y-1 my-4">
+                <span
+                  className={`text-[10px] uppercase font-semibold opacity-80 ${styles.subtitle}`}
+                >
+                  {remainingMs === null
+                    ? "Validity"
+                    : remainingMs > 0
+                    ? "Expires in"
+                    : "Status"}
+                </span>
+                <p
+                  className={`text-2xl font-mono font-bold tracking-tight ${styles.counter}`}
+                >
+                  {trialLoading ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    formatRemaining(remainingMs)
+                  )}
+                </p>
+              </div>
+
+              {!styles.upgradeDisabled && (
+                <Button
+                  size="sm"
+                  className={`w-full h-9 text-xs font-bold shadow-sm ${styles.button}`}
+                  onClick={() =>
+                    (window.location.href = "/school/subscription")
+                  }
+                >
+                  Upgrade
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          // COLLAPSED: MINI ICON ONLY
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className={`flex justify-center items-center p-3 rounded-xl cursor-pointer ${styles.iconBg}`}
+                  onClick={() =>
+                    (window.location.href = "/school/subscription")
+                  }
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-bold">
+                Plan: {planLabel}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+
+      <div className="p-4 border-t border-slate-100 dark:border-white/5 flex flex-col gap-2">
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                className={`w-full ${
+                  isExpanded ? "justify-start" : "justify-center px-0"
+                } text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300`}
+                onClick={handleLogout}
+              >
+                <LogOut className={`w-4 h-4 ${isExpanded ? "mr-2" : ""}`} />
+                {isExpanded && <span className="sidebar-text">Log Out</span>}
+              </Button>
+            </TooltipTrigger>
+            {!isExpanded && (
+              <TooltipContent side="right">Log Out</TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

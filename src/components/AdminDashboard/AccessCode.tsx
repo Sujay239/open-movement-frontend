@@ -1,4 +1,4 @@
-import { useState } from "react";
+import  { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -33,106 +33,136 @@ import {
   Copy,
   Trash2,
   Key,
-  School,
   Timer,
   CheckCircle2,
   Calendar,
-  X, // Added X icon
+  X,
   Hash,
+  School,
+  Loader2, // For loading spinner
+  AlertTriangle, // For delete warning
 } from "lucide-react";
-import { toast } from "sonner";
+import { useAlert } from "../blocks/AlertProvider";
+// import { toast } from "sonner";
 
 // --- 1. TYPES ---
 type CodeStatus = "UNUSED" | "ACTIVE" | "EXPIRED";
 
 interface AccessCode {
-  id: string;
+  id: string; // UUID from DB
   code: string;
   status: CodeStatus;
-  school_name?: string;
+  school_name?: string; // Derived from joined school table
   created_at: string;
   first_used_at?: string;
   expires_at?: string;
 }
 
-// --- 2. DEMO DATA ---
-const demoCodes: AccessCode[] = [
-  {
-    id: "1",
-    code: "OM-TRIAL-8X92",
-    status: "UNUSED",
-    created_at: "2024-03-10T09:00:00Z",
-  },
-  {
-    id: "2",
-    code: "OM-TRIAL-A7B3",
-    status: "ACTIVE",
-    school_name: "Bangkok Prep",
-    created_at: "2024-03-09T10:00:00Z",
-    first_used_at: "2024-03-12T08:00:00Z",
-    expires_at: "2024-03-13T08:00:00Z",
-  },
-  {
-    id: "3",
-    code: "OM-TRIAL-99X1",
-    status: "EXPIRED",
-    school_name: "Dubai British School",
-    created_at: "2024-02-01T09:00:00Z",
-    first_used_at: "2024-02-05T14:00:00Z",
-    expires_at: "2024-02-06T14:00:00Z",
-  },
-];
-
 export default function AccessCodes() {
-  const [codes, setCodes] = useState<AccessCode[]>(demoCodes);
+  // --- STATE ---
+  const [codes, setCodes] = useState<AccessCode[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+    const {showError , showSuccess} = useAlert();
 
   // Generation Modal State
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [newlyGeneratedCode, setNewlyGeneratedCode] = useState("");
 
-  // --- Handlers ---
+  // Delete Confirmation State
+  const [codeToDelete, setCodeToDelete] = useState<string | null>(null);
+  const BASE_URL = import.meta.env?.VITE_BASE_URL;
+  // --- API URL ---
+  const API_URL = `${BASE_URL}/admin/access-codes`;
 
+  // --- 1. FETCH DATA ---
+  const fetchCodes = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(API_URL, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch codes");
+      const data = await res.json();
+      setCodes(data);
+    } catch (error) {
+      console.error(error);
+      showError("Failed to load access codes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCodes();
+  }, []);
+
+  // --- 2. GENERATE HANDLER ---
   const handleGenerate = () => {
+    // 1. Generate code locally first
     const randomSuffix = Math.random()
       .toString(36)
       .substring(2, 6)
       .toUpperCase();
     const newCodeString = `OM-TRIAL-${randomSuffix}`;
-
-    const newEntry: AccessCode = {
-      id: Math.random().toString(36).substr(2, 9),
-      code: newCodeString,
-      status: "UNUSED",
-      created_at: new Date().toISOString(),
-    };
-
-    setCodes([newEntry, ...codes]);
     setNewlyGeneratedCode(newCodeString);
     setIsGenerateOpen(true);
-    toast.success("New access code generated!");
   };
 
-  const handleDelete = (id: string) => {
-    if (
-      window.confirm(
-        "Are you sure you want to revoke this code? If a school is using it, they will be logged out."
-      )
-    ) {
-      setCodes((prev) => prev.filter((c) => c.id !== id));
-      toast.success("Code revoked successfully");
+  // Called when user clicks "Done" in the modal
+  const confirmGeneration = async () => {
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code: newlyGeneratedCode }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save code");
+
+     showSuccess("New access code saved!");
+      setIsGenerateOpen(false);
+      fetchCodes(); // Refresh list
+    } catch (error) {
+      console.error(error);
+      showError("Error saving code");
+    }
+  };
+
+  // --- 3. DELETE HANDLER ---
+  const confirmDelete = async () => {
+    if (!codeToDelete) return;
+
+    try {
+      const res = await fetch(`${API_URL}/${codeToDelete}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to delete");
+
+      setCodes((prev) => prev.filter((c) => c.id !== codeToDelete)); // Optimistic UI update
+      showSuccess("Code revoked successfully");
+      setCodeToDelete(null); // Close modal
+    } catch (error) {
+      console.error(error);
+      showError("Error revoking code");
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Code copied to clipboard");
+   showSuccess("Code copied to clipboard");
   };
 
-  // --- Helpers ---
-
-  const getStatusBadge = (status: CodeStatus) => {
-    switch (status) {
+  // --- HELPERS ---
+  const getStatusBadge = (status: string) => {
+    // Normalize status
+    const s = status?.toUpperCase();
+    switch (s) {
       case "UNUSED":
         return (
           <Badge
@@ -154,6 +184,8 @@ export default function AccessCodes() {
             Expired
           </Badge>
         );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -167,13 +199,13 @@ export default function AccessCodes() {
     });
   };
 
-  // --- UPDATED FILTER LOGIC ---
+  // --- FILTER ---
   const filteredCodes = codes.filter((c) => {
     const query = searchQuery.toLowerCase();
     return (
       c.code.toLowerCase().includes(query) ||
-      c.school_name?.toLowerCase().includes(query) ||
-      c.status.toLowerCase().includes(query)
+      (c.school_name?.toLowerCase() || "").includes(query) ||
+      (c.status?.toLowerCase() || "").includes(query)
     );
   });
 
@@ -211,7 +243,10 @@ export default function AccessCodes() {
               </button>
             )}
           </div>
-          <Button onClick={handleGenerate} className="w-full sm:w-auto">
+          <Button
+            onClick={handleGenerate}
+            className="w-full sm:w-auto cursor-pointer"
+          >
             <Plus className="mr-2 h-4 w-4" /> Generate
           </Button>
         </div>
@@ -255,178 +290,184 @@ export default function AccessCodes() {
         </Card>
       </div>
 
-      {/* --- MOBILE VIEW (Cards) --- */}
-      <div className="grid grid-cols-1 gap-4 md:hidden">
-        {filteredCodes.length === 0 ? (
-          <div className="text-center p-8 border rounded-lg bg-muted/20 text-muted-foreground">
-            No codes found. Generate one to get started.
-          </div>
-        ) : (
-          filteredCodes.map((item) => (
-            <div
-              key={item.id}
-              className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-mono font-bold text-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded select-all">
-                  {item.code}
-                </span>
-                {getStatusBadge(item.status)}
-              </div>
-
-              <div className="text-sm text-muted-foreground space-y-2">
-                <div className="flex items-center gap-2">
-                  <School className="h-4 w-4" />
-                  <span className="font-medium text-foreground">
-                    {item.school_name || "Not used yet"}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 pt-1">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Generated
-                    </p>
-                    <div className="flex items-center gap-1.5 text-foreground">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span>{formatDate(item.created_at)}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Expires
-                    </p>
-                    <div className="flex items-center gap-1.5 text-foreground">
-                      <Timer className="h-3.5 w-3.5" />
-                      <span>
-                        {item.expires_at ? formatDate(item.expires_at) : "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t mt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyToClipboard(item.code)}
-                >
-                  <Copy className="mr-2 h-3.5 w-3.5" /> Copy
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => handleDelete(item.id)}
-                >
-                  <Trash2 className="mr-2 h-3.5 w-3.5" /> Revoke
-                </Button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* --- DESKTOP VIEW (Table) --- */}
-      <div className="hidden md:block rounded-md border bg-card flex-1 overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Access Code</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Used By</TableHead>
-              <TableHead>Generated</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      {loading ? (
+        <div className="flex justify-center items-center h-64 border rounded-md bg-muted/10">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {/* --- MOBILE VIEW (Cards) --- */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
             {filteredCodes.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  No codes found matching "{searchQuery}".
-                </TableCell>
-              </TableRow>
+              <div className="text-center p-8 border rounded-lg bg-muted/20 text-muted-foreground">
+                No codes found. Generate one to get started.
+              </div>
             ) : (
               filteredCodes.map((item) => (
-                <TableRow key={item.id}>
-                  {/* 1. CODE (Copyable) */}
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono font-bold text-sm bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded select-all">
-                        {item.code}
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded select-all">
+                      {item.code}
+                    </span>
+                    {getStatusBadge(item.status)}
+                  </div>
+
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <div className="flex items-center gap-2">
+                      <School className="h-4 w-4" />
+                      <span className="font-medium text-foreground">
+                        {item.school_name || "Not used yet"}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                        onClick={() => copyToClipboard(item.code)}
-                        title="Copy to clipboard"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
                     </div>
-                  </TableCell>
 
-                  {/* 2. STATUS */}
-                  <TableCell>{getStatusBadge(item.status)}</TableCell>
-
-                  {/* 3. SCHOOL */}
-                  <TableCell>
-                    {item.school_name ? (
-                      <div className="flex items-center">
-                        <School className="mr-2 h-3 w-3 text-muted-foreground" />
-                        {item.school_name}
+                    <div className="grid grid-cols-2 gap-4 pt-1">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Generated
+                        </p>
+                        <div className="flex items-center gap-1.5 text-foreground">
+                          <Calendar className="h-3.5 w-3.5" />
+                          <span>{formatDate(item.created_at)}</span>
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground text-xs italic">
-                        -
-                      </span>
-                    )}
-                  </TableCell>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Expires
+                        </p>
+                        <div className="flex items-center gap-1.5 text-foreground">
+                          <Timer className="h-3.5 w-3.5" />
+                          <span>
+                            {item.expires_at
+                              ? formatDate(item.expires_at)
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                  {/* 4. DATES */}
-                  <TableCell className="text-xs text-muted-foreground">
-                    {formatDate(item.created_at)}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {item.expires_at ? formatDate(item.expires_at) : "N/A"}
-                  </TableCell>
-
-                  {/* 5. ACTIONS */}
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => copyToClipboard(item.code)}
-                        >
-                          <Copy className="mr-2 h-4 w-4" /> Copy Code
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Revoke / Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t mt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(item.code)}
+                    >
+                      <Copy className="mr-2 h-3.5 w-3.5" /> Copy
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setCodeToDelete(item.id)}
+                    >
+                      <Trash2 className="mr-2 h-3.5 w-3.5" /> Revoke
+                    </Button>
+                  </div>
+                </div>
               ))
             )}
-          </TableBody>
-        </Table>
-      </div>
+          </div>
+
+          {/* --- DESKTOP VIEW (Table) --- */}
+          <div className="hidden md:block rounded-md border bg-card flex-1 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Access Code</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Used By</TableHead>
+                  <TableHead>Generated</TableHead>
+                  <TableHead>Expires</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCodes.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      No codes found matching "{searchQuery}".
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCodes.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono font-bold text-sm bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded select-all">
+                            {item.code}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                            onClick={() => copyToClipboard(item.code)}
+                            title="Copy to clipboard"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(item.status)}</TableCell>
+                      <TableCell>
+                        {item.school_name ? (
+                          <div className="flex items-center">
+                            <School className="mr-2 h-3 w-3 text-muted-foreground" />
+                            {item.school_name}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs italic">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {formatDate(item.created_at)}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {item.expires_at ? formatDate(item.expires_at) : "N/A"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0 cursor-pointer"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => copyToClipboard(item.code)}
+                            >
+                              <Copy className="mr-2 h-4 w-4" /> Copy Code
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600 cursor-pointer"
+                              onClick={() => setCodeToDelete(item.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Revoke /
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
 
       {/* --- GENERATION SUCCESS DIALOG --- */}
       <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
@@ -437,7 +478,7 @@ export default function AccessCodes() {
               Code Generated
             </DialogTitle>
             <DialogDescription>
-              This code is valid for 24 hours once the school enters it.
+              Confirm to save this code to the database.
             </DialogDescription>
           </DialogHeader>
 
@@ -459,11 +500,34 @@ export default function AccessCodes() {
 
           <DialogFooter className="sm:justify-start">
             <Button
+              className="cursor-pointer"
               type="button"
-              variant="secondary"
-              onClick={() => setIsGenerateOpen(false)}
+              onClick={confirmGeneration} // Calls POST API
             >
-              Done
+              Done & Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- DELETE CONFIRMATION DIALOG --- */}
+      <Dialog open={!!codeToDelete} onOpenChange={() => setCodeToDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" /> Revoke Code?
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this code? If a school is
+              currently using it, they will lose access immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCodeToDelete(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Revoke Code
             </Button>
           </DialogFooter>
         </DialogContent>
