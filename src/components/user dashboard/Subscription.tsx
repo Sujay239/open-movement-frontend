@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShieldAlert } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import PricingSection from "../ui/PricingSection";
+import PricingSection from "../../pages/default/PricingSection";
 
 const BASE_URL = import.meta.env?.VITE_BASE_URL ?? "";
 
@@ -265,8 +265,8 @@ export const SubscriptionPage: React.FC = () => {
   const badgeText = loading
     ? "…"
     : status === "ACTIVE"
-      ? "Active"
-      : "Free Tier"; // More humble than "Free Plan"
+    ? "Active"
+    : "Free Tier"; // More humble than "Free Plan"
 
   return (
     <div ref={container} className="space-y-8 max-w-5xl mx-auto">
@@ -383,7 +383,7 @@ export const SubscriptionPage: React.FC = () => {
                   className="text-red-500 border-slate-200 dark:border-white/10 flex-1 cursor-pointer hover:bg-red-600 hover:text-white transition-all duration-300"
                   onClick={onCancelClick}
                   disabled={
-                    cancelling ||  (status !== "TRIAL" && status !== "ACTIVE")
+                    cancelling || (status !== "TRIAL" && status !== "ACTIVE")
                   }
                 >
                   {cancelling ? "Processing..." : cancelButtonLabel}

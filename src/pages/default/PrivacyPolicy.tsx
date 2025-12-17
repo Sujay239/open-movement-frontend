@@ -19,6 +19,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
+const VITE_PRIVACY_OFFICE_EMAIL = import.meta.env.VITE_PRIVACY_OFFICE_EMAIL;
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 export const PrivacyPage = () => {
   const [activeSection, setActiveSection] = useState("collection");
   const container = useRef<HTMLDivElement>(null);
@@ -87,6 +89,24 @@ export const PrivacyPage = () => {
       window.scrollTo({ top: y, behavior: "smooth" });
       setActiveSection(id); // Instant update on click
     }
+  };
+
+
+  // 2. Define the handler function
+  const handleEmailPrivacy = () => {
+    const subject = "Support Request: School Portal";
+    const body = "Hello Support Team,\n\nI need assistance with...\n\n";
+
+    // Check if email exists
+    const recipient = VITE_PRIVACY_OFFICE_EMAIL || "support@yourschool.com"; // Fallback if env is missing
+
+    // Create Gmail URL with pre-filled fields
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+      recipient
+    )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    // Open in new tab
+    window.open(gmailUrl, "_blank");
   };
 
   return (
@@ -303,6 +323,7 @@ export const PrivacyPage = () => {
                 contact us immediately.
               </p>
               <Button
+              onClick={handleEmailPrivacy}
                 variant="outline"
                 className="gap-2 cursor-pointer hover:scale-105 transition-transform duration-200"
               >
@@ -318,10 +339,10 @@ export const PrivacyPage = () => {
             <p className="text-muted-foreground text-sm">
               If you have any questions about this policy, please email{" "}
               <a
-                href="mailto:admin@openmovements.com"
+                href={ADMIN_EMAIL}
                 className="text-primary hover:underline hover:font-bold transition-transform hover:text-green-400 duration-200"
               >
-                admin@openmovements.com
+                {ADMIN_EMAIL}
               </a>
             </p>
           </div>

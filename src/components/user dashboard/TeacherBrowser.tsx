@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/card";
 import {
   Search,
-  SlidersHorizontal,
   MapPin,
   Briefcase,
   FileText,
@@ -46,6 +45,37 @@ const BASE_URL = import.meta.env?.VITE_BASE_URL ?? "";
 
 const INITIAL_TEACHERS: any[] = [];
 
+// --- MAPPING FOR ABBREVIATIONS ---
+// Keys must match the "name" field from your iso3166-2.json exactly
+const COUNTRY_ALIASES: Record<string, string[]> = {
+  "United Kingdom": [
+    "UK",
+    "U.K.",
+    "U.K",
+    "Great Britain",
+    "England",
+    "Scotland",
+    "Wales",
+    "Northern Ireland",
+  ],
+  "United States": [
+    "USA",
+    "U.S.A.",
+    "U.S.A",
+    "US",
+    "U.S.",
+    "U.S",
+    "America",
+    "United States of America",
+  ],
+  "United Arab Emirates": ["UAE", "U.A.E.","U.A.E", "Dubai", "Abu Dhabi"],
+  "South Korea": ["Korea", "Republic of Korea", "ROK"],
+  China: ["PRC", "P.R.C." , "P.R.C"],
+  "Russian Federation": ["Russia"],
+  "Viet Nam": ["Vietnam"],
+  // Add more mappings here as you find them in your data
+};
+
 export default function TeacherBrowser() {
   const container = useRef<HTMLDivElement | null>(null);
 
@@ -55,9 +85,13 @@ export default function TeacherBrowser() {
   const [loading, setLoading] = useState<boolean>(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(
     null
-  ); // Local state for status
+  );
   const { showError } = useAlert();
+
+  // Search Query State
   const [query, setQuery] = useState<string>("");
+  // Location Filter State
+  const [locationFilter, setLocationFilter] = useState<string>("");
 
   const COUNTRY_NAMES = useMemo(() => {
     const names: string[] = [];
@@ -95,7 +129,6 @@ export default function TeacherBrowser() {
       setLoading(true);
 
       try {
-        // A. Fetch Subscription Status
         const statusRes = await fetch(`${BASE_URL}/subscription/status`, {
           method: "GET",
           credentials: "include",
@@ -105,12 +138,10 @@ export default function TeacherBrowser() {
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           if (mounted) {
-            // Sets 'ACTIVE', 'TRIAL', 'EXPIRED', etc.
             setSubscriptionStatus(statusData.subscription_status);
           }
         }
 
-        // B. Fetch Teachers
         const teachersRes = await fetch(`${BASE_URL}/portal/teachers`, {
           method: "GET",
           credentials: "include",
@@ -137,7 +168,6 @@ export default function TeacherBrowser() {
           location: t.current_country ?? t.location ?? "Unknown",
           visa: t.visa_status ?? "Unknown",
           bio: t.bio ?? "No bio available.",
-          // Mapped the status from backend
           status: t.profile_status ?? "ACTIVE",
         });
 
@@ -170,11 +200,39 @@ export default function TeacherBrowser() {
     };
   }, []);
 
-  const filtered = teachers.filter(
-    (t) =>
+  // --- FILTERING LOGIC ---
+  const filtered = teachers.filter((t) => {
+    // 1. Text Search Match
+    const matchesQuery =
       t.subject.toLowerCase().includes(query.toLowerCase()) ||
-      (t.location ?? "").toLowerCase().includes(query.toLowerCase())
-  );
+      (t.location ?? "").toLowerCase().includes(query.toLowerCase());
+
+    // 2. Location Dropdown Match (With Alias Logic)
+    let matchesLocation = false;
+
+    if (!locationFilter || locationFilter === "all") {
+      matchesLocation = true;
+    } else {
+      const teacherLoc = (t.location ?? "").trim().toLowerCase();
+      const filterLoc = locationFilter.toLowerCase(); // The selected standard name
+
+      // A. Direct Match (e.g., Data: "United Kingdom", Filter: "United Kingdom")
+      if (teacherLoc === filterLoc) {
+        matchesLocation = true;
+      }
+      // B. Alias Match (e.g., Data: "UK", Filter: "United Kingdom")
+      else {
+        // Look up the list of aliases for the *selected* filter
+        const aliases = COUNTRY_ALIASES[locationFilter] || [];
+        // Check if the teacher's location exists in that list
+        if (aliases.some((alias) => alias.toLowerCase() === teacherLoc)) {
+          matchesLocation = true;
+        }
+      }
+    }
+
+    return matchesQuery && matchesLocation;
+  });
 
   return (
     <div ref={container} className="space-y-8">
@@ -183,7 +241,7 @@ export default function TeacherBrowser() {
         <div className="w-full md:w-96 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by subject or location..."
+            placeholder="Search by subject or keyword..."
             className="pl-9 bg-slate-50 dark:bg-black/20 border-slate-200 dark:border-white/10"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -191,31 +249,18 @@ export default function TeacherBrowser() {
         </div>
 
         <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          <Select>
-            <SelectTrigger className="w-[140px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-white/10 cursor-pointer">
-              <SelectValue placeholder="Department" />
+          {/* LOCATION FILTER */}
+          <Select
+            value={locationFilter}
+            onValueChange={(val) => setLocationFilter(val)}
+          >
+            <SelectTrigger className="w-[180px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-white/10 cursor-pointer">
+              <SelectValue placeholder="Filter by Location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="primary" className="cursor-pointer">
-                Primary
+              <SelectItem value="all" className="cursor-pointer font-semibold">
+                All Locations
               </SelectItem>
-              <SelectItem value="secondary" className="cursor-pointer">
-                Secondary
-              </SelectItem>
-              <SelectItem value="highSecondary" className="cursor-pointer">
-                Higher Secondary
-              </SelectItem>
-              <SelectItem value="leadership" className="cursor-pointer">
-                Leadership
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select>
-            <SelectTrigger className="w-[140px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-white/10 cursor-pointer">
-              <SelectValue placeholder="Location" />
-            </SelectTrigger>
-            <SelectContent>
               {COUNTRY_NAMES.map((country) => (
                 <SelectItem
                   key={country}
@@ -227,14 +272,6 @@ export default function TeacherBrowser() {
               ))}
             </SelectContent>
           </Select>
-
-          <Button
-            variant="outline"
-            size="icon"
-            className="border-slate-200 dark:border-white/10 bg-white dark:bg-zinc-900"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
@@ -250,12 +287,17 @@ export default function TeacherBrowser() {
             subscriptionStatus={subscriptionStatus}
           />
         ))}
+        {filtered.length === 0 && !loading && (
+          <div className="col-span-full text-center py-12 text-slate-500">
+            No teachers found matching your criteria.
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// --- TEACHER CARD COMPONENT ---
+// --- TEACHER CARD COMPONENT (Unchanged) ---
 function TeacherCard({
   data,
   subscriptionStatus,
@@ -269,10 +311,8 @@ function TeacherCard({
   const { showError, showSuccess } = useAlert();
   const navigate = useNavigate();
 
-  // 2. CHECK STATUS: If not 'ACTIVE', restrict access
   const isRestricted = subscriptionStatus !== "ACTIVE";
 
-  // --- DYNAMIC STATUS CONFIGURATION ---
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "PLACED":
@@ -291,7 +331,7 @@ function TeacherCard({
           border: "border-slate-200 dark:border-zinc-700",
           text: "text-slate-500 dark:text-zinc-400",
           dotBg: "bg-slate-400",
-          dotPing: "hidden", // No ping for inactive
+          dotPing: "hidden",
         };
       case "ACTIVE":
       default:
@@ -413,12 +453,6 @@ function TeacherCard({
                   </span>
                 </div>
                 <div className="space-y-1">
-                  {/* <Badge
-                    variant="secondary"
-                    className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-500 dark:text-zinc-400 px-2 py-0.5"
-                  >
-                    {data.level}
-                  </Badge> */}
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
                     {data.subject}
                   </h3>
@@ -459,7 +493,6 @@ function TeacherCard({
               </Button>
             </DialogTrigger>
 
-            {/* RESTRICTED BUTTON UI */}
             <Button
               onClick={handleRequestClick}
               className={`flex-1 h-11 transition-all shadow-lg rounded-xl font-semibold cursor-pointer hover:scale-110
@@ -515,7 +548,6 @@ function TeacherCard({
                     </DialogDescription>
                   </div>
 
-                  {/* DYNAMIC STATUS BADGE */}
                   <div
                     className={`self-start flex items-center gap-2 px-3 py-1.5 rounded-full border ${statusConfig.bg} ${statusConfig.border}`}
                   >
@@ -580,7 +612,6 @@ function TeacherCard({
                   </Button>
                 </DialogClose>
 
-                {/* RESTRICTED BUTTON UI INSIDE MODAL */}
                 <Button
                   className={`w-full sm:w-auto h-12 rounded-xl text-base font-semibold group order-1 sm:order-2 cursor-pointer transition-transform
                     ${

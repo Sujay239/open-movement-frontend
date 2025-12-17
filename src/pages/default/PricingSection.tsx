@@ -16,7 +16,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Link } from "react-router";
-import { useAlert } from "../blocks/AlertProvider";
+import { useAlert } from "../../components/blocks/AlertProvider";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -92,7 +92,7 @@ const BASE_URL = import.meta.env?.VITE_BASE_URL;
 
 export const PricingSection = () => {
   const container = useRef<HTMLOptionElement>(null);
-  const {showError} = useAlert();
+  const { showError } = useAlert();
 
   useGSAP(
     () => {
@@ -149,7 +149,7 @@ export const PricingSection = () => {
       if (res.ok) {
         window.location.href = data.url;
       } else {
-        showError(data.reason);
+        showError("Something went wrong . Please Login and try again");
         console.log("Error while creating the checkout session.");
       }
     } catch (err) {

@@ -9,13 +9,12 @@ import {
 import PublicLayout from "@/layouts/PublicLayout";
 import LoginForm from "@/pages/default/Login";
 import RegisterForm from "@/pages/default/Register";
-import PricingSection from "@/components/ui/PricingSection";
+import PricingSection from "@/pages/default/PricingSection";
 import { schoolRoutes } from "./SchoolRoutes";
 import { adminRoutes } from "./AdminRoutes";
 import Unauthorized from "@/pages/default/Unauthorized";
 import DefaultAccessCode from "@/pages/default/DefaultAcessCode";
 import Password from "@/pages/default/ForgotPassword";
-
 
 /**
  * Convert defaultRoutes (AppRoute[]) into RouteObject[] children for PublicLayout.
@@ -63,16 +62,15 @@ const pricingRoute: RouteObject = {
   element: <PricingSection />,
 };
 
-const unauthorized : RouteObject = {
-  path : "/unauthorized",
-  element : <Unauthorized />
-}
+const unauthorized: RouteObject = {
+  path: "/unauthorized",
+  element: <Unauthorized />,
+};
 
-
-const useAccessCode : RouteObject = {
-  path : '/use-access-code',
-  element : <DefaultAccessCode />
-}
+const useAccessCode: RouteObject = {
+  path: "/use-access-code",
+  element: <DefaultAccessCode />,
+};
 
 const ForgotPassword: RouteObject = {
   path: "/forgot-password",

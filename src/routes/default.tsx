@@ -5,7 +5,7 @@ import Features from "@/pages/default/Features";
 import TermsAndConditions from "@/pages/default/TermsAndConditions";
 import PrivacyPolicy from "@/pages/default/PrivacyPolicy";
 import NotFoundPage from "@/pages/default/NotFoundPage";
-import ContactUs from "@/pages/default/ContactUs";
+import { ContactUs } from "@/pages/default/ContactUs";
 
 export const defaultRoutes: AppRoute[] = [
   {

@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 export const TermsAndConditions = () => {
   const [activeSection, setActiveSection] = useState("introduction");
 
@@ -36,6 +37,23 @@ export const TermsAndConditions = () => {
       element.scrollIntoView({ behavior: "smooth" });
       setActiveSection(id);
     }
+  };
+
+
+  const handleContactSupprt = () => {
+    const subject = "Support Request: School Portal";
+    const body = "Hello Support Team,\n\nI need assistance with...\n\n";
+
+    // Check if email exists
+    const recipient = ADMIN_EMAIL || "support@yourschool.com"; // Fallback if env is missing
+
+    // Create Gmail URL with pre-filled fields
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+      recipient
+    )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    // Open in new tab
+    window.open(gmailUrl, "_blank");
   };
 
   return (
@@ -288,7 +306,7 @@ export const TermsAndConditions = () => {
               Our support team is happy to clarify any points regarding access
               codes or subscriptions.
             </p>
-            <Button size="lg" className="gap-2 cursor-pointer hover:scale-115 transition-transform duration-200 hover:bg-green-400">
+            <Button onClick={handleContactSupprt} size="lg" className="gap-2 cursor-pointer hover:scale-115 transition-transform duration-200 hover:bg-green-400">
               Contact Support <ArrowRight className="w-4 h-4" />
             </Button>
           </div>

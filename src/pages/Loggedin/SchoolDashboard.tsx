@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/tooltip";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import logo from "../../assets/open movement logo.png";
+import darklogo from "../../assets/dark-logo.png";
 
 // --- SIDEBAR NAVIGATION ITEMS ---
 const navItems = [
@@ -461,12 +463,24 @@ function SidebarContent({
         } border-b border-slate-100 dark:border-white/5 h-20 transition-all duration-300`}
       >
         <div className="flex items-center gap-4">
-          <div className="bg-blue-600/10 p-2 rounded-lg transition-transform hover:scale-105">
-            <ShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          <div
+            className={`bg-blue-600/10 p-2 rounded-lg transition-transform hover:scale-105 ${
+              !isExpanded ? "hidden" : "block"
+            }`}
+          >
+            <img src={logo} className="w-6 h-6 dark:hidden" alt="Logo light" />
+
+            {/* Dark logo */}
+            <img
+              src={darklogo}
+              className="w-6 h-6 hidden dark:block"
+              alt="Logo dark"
+            />
           </div>
+
           {isExpanded && (
             <span className="font-bold text-lg tracking-tight text-slate-900 dark:text-white sidebar-text">
-              School Access
+              Open Movemensts
             </span>
           )}
 

@@ -146,9 +146,12 @@ const Features = () => {
               size="lg"
               className="h-12 px-8 text-lg cursor-pointer hover:scale-110 transition-transform duration-200 hover:bg-green-400"
             >
-              Start Free Trial
+              <Link to='/use-access-code'>Start Free Trial</Link>
             </Button>
             <Button
+              onClick={() => {
+                alert("Demo is coming soon.");
+              }}
               size="lg"
               variant="outline"
               className="h-12 px-8 text-lg cursor-pointer hover:scale-110 transition-transform duration-200"
@@ -285,7 +288,7 @@ const Features = () => {
                 </div>
 
                 <Button className="w-full group cursor-pointer hover:scale-105 transition-transform duration-200 flex items-center justify-center hover:bg-green-400">
-                  Request Full Profile
+                  <Link to='/login'>Request Full Profile</Link>
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </div>
@@ -310,7 +313,7 @@ const Features = () => {
               variant="secondary"
               className="text-primary font-bold cursor-pointer hover:scale-110 transition-transform duration-200"
             >
-              Get an Access Code
+              <Link to='/use-access-code'>Enter an Access Code</Link>
             </Button>
            <Link to="/pricing">
              <Button

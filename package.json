@@ -30,7 +30,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
-    "gsap": "^3.14.1",
+    "gsap": "^3.14.2",
     "iso-3166-2": "^1.0.0",
     "iso-3166-2.json": "^0.1.2",
     "lucide-react": "^0.555.0",
