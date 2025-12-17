@@ -135,10 +135,16 @@ export const ContactUs = () => {
   return (
     <div
       ref={container}
-      className="min-h-screen lg:h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-zinc-950 relative overflow-y-auto lg:overflow-hidden py-12 lg:py-4 px-4 sm:px-6 lg:px-8 selection:bg-cyan-500/30 text-foreground transition-colors duration-300"
+      /* FIXED CLASSES:
+         1. min-h-screen: Grows with content on mobile.
+         2. lg:h-screen: Fixed height only on Desktop.
+         3. overflow-x-hidden: Prevents side scrolling from blobs.
+         4. REMOVED overflow-y-auto: Lets the browser handle vertical scrolling naturally.
+      */
+      className="min-h-screen lg:h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-zinc-950 relative overflow-x-hidden py-12 lg:py-4 px-4 sm:px-6 lg:px-8 selection:bg-cyan-500/30 text-foreground transition-colors duration-300"
     >
       {/* 1. ANIMATED BACKGROUND */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      <div className="absolute inset-0 z-0 pointer-events-none fixed">
         {/* Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px] opacity-20"></div>
         {/* Moving Blobs - Resized for mobile */}
@@ -161,7 +167,7 @@ export const ContactUs = () => {
         </div>
 
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 lg:gap-8 grow-0 pb-8 lg:pb-0">
-          {/* LEFT SIDE: Contact Info - Stacked at bottom on mobile, Left on Desktop */}
+          {/* LEFT SIDE: Contact Info */}
           <div
             ref={infoRef}
             className="flex flex-col gap-6 lg:col-span-4 justify-center order-last lg:order-first"
@@ -188,7 +194,7 @@ export const ContactUs = () => {
               />
             </div>
 
-            {/* Social Proof - Hidden on very small screens to save space, visible on sm+ */}
+            {/* Social Proof */}
             <div className="hidden sm:block bg-white/60 dark:bg-zinc-900/50 border border-slate-200 dark:border-white/5 rounded-2xl p-5 backdrop-blur-sm shadow-sm">
               <div className="flex -space-x-3 mb-3">
                 {[1, 2, 3, 4].map((i) => (
@@ -334,7 +340,7 @@ export const ContactUs = () => {
                       rows={3}
                       onFocus={() => setFocusedField("message")}
                       onBlur={() => setFocusedField(null)}
-                      className="border-0 bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus-visible:ring-0 resize-none p-4 min-h-20"
+                      className="border-0 bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus-visible:ring-0 resize-none p-4 min-h-[80px]"
                     />
                   </div>
                 </div>

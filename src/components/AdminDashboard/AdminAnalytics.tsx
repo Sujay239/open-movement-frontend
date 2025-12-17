@@ -40,37 +40,37 @@ import { useAlert } from "../blocks/AlertProvider";
 
 // --- MOCK DATA (RETAINED FOR CLIENT DEMO BACKUP) ---
 // To use this instead of API, initialize your useState with these variables.
-const DEMO_viewsData = [
-  { date: "Mon", views: 45, requests: 2 },
-  { date: "Tue", views: 52, requests: 3 },
-  { date: "Wed", views: 38, requests: 1 },
-  { date: "Thu", views: 65, requests: 5 },
-  { date: "Fri", views: 48, requests: 2 },
-  { date: "Sat", views: 20, requests: 0 },
-  { date: "Sun", views: 15, requests: 0 },
-];
+// const DEMO_viewsData = [
+//   { date: "Mon", views: 45, requests: 2 },
+//   { date: "Tue", views: 52, requests: 3 },
+//   { date: "Wed", views: 38, requests: 1 },
+//   { date: "Thu", views: 65, requests: 5 },
+//   { date: "Fri", views: 48, requests: 2 },
+//   { date: "Sat", views: 20, requests: 0 },
+//   { date: "Sun", views: 15, requests: 0 },
+// ];
 
-const DEMO_topSchools = [
-  { name: "Riyadh Intl School", views: 145, location: "Saudi Arabia" },
-  { name: "Bangkok Prep", views: 112, location: "Thailand" },
-  { name: "Dubai British School", views: 89, location: "UAE" },
-  { name: "Singapore American", views: 76, location: "Singapore" },
-  { name: "British School Tokyo", views: 54, location: "Japan" },
-];
+// const DEMO_topSchools = [
+//   { name: "Riyadh Intl School", views: 145, location: "Saudi Arabia" },
+//   { name: "Bangkok Prep", views: 112, location: "Thailand" },
+//   { name: "Dubai British School", views: 89, location: "UAE" },
+//   { name: "Singapore American", views: 76, location: "Singapore" },
+//   { name: "British School Tokyo", views: 54, location: "Japan" },
+// ];
 
-const DEMO_topTeachers = [
-  { code: "OM-T8842", name: "Sarah Jenkins (Math)", hits: 34 },
-  { code: "OM-T9921", name: "David Chen (Physics)", hits: 28 },
-  { code: "OM-T1255", name: "Emily White (Primary)", hits: 22 },
-  { code: "OM-T3341", name: "James Wilson (PE)", hits: 19 },
-];
+// const DEMO_topTeachers = [
+//   { code: "OM-T8842", name: "Sarah Jenkins (Math)", hits: 34 },
+//   { code: "OM-T9921", name: "David Chen (Physics)", hits: 28 },
+//   { code: "OM-T1255", name: "Emily White (Primary)", hits: 22 },
+//   { code: "OM-T3341", name: "James Wilson (PE)", hits: 19 },
+// ];
 
-const DEMO_regionData = [
-  { name: "Middle East", value: 45, color: "#3b82f6" },
-  { name: "Southeast Asia", value: 30, color: "#10b981" },
-  { name: "Europe", value: 15, color: "#f59e0b" },
-  { name: "Other", value: 10, color: "#64748b" },
-];
+// const DEMO_regionData = [
+//   { name: "Middle East", value: 45, color: "#3b82f6" },
+//   { name: "Southeast Asia", value: 30, color: "#10b981" },
+//   { name: "Europe", value: 15, color: "#f59e0b" },
+//   { name: "Other", value: 10, color: "#64748b" },
+// ];
 
 // --- TOOLTIP COMPONENT ---
 const CustomTooltip = ({ active, payload, label }: any) => {
