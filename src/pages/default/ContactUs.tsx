@@ -144,7 +144,7 @@ export const ContactUs = () => {
       className="min-h-screen lg:h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-zinc-950 relative overflow-x-hidden py-12 lg:py-4 px-4 sm:px-6 lg:px-8 selection:bg-cyan-500/30 text-foreground transition-colors duration-300"
     >
       {/* 1. ANIMATED BACKGROUND */}
-      <div className="absolute inset-0 z-0 pointer-events-none fixed">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         {/* Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px] opacity-20"></div>
         {/* Moving Blobs - Resized for mobile */}
@@ -340,7 +340,7 @@ export const ContactUs = () => {
                       rows={3}
                       onFocus={() => setFocusedField("message")}
                       onBlur={() => setFocusedField(null)}
-                      className="border-0 bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus-visible:ring-0 resize-none p-4 min-h-[80px]"
+                      className="border-0 bg-transparent text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus-visible:ring-0 resize-none p-4 min-h-20"
                     />
                   </div>
                 </div>
