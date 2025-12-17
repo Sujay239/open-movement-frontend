@@ -138,7 +138,7 @@ export default function RequestsManagement() {
       );
 
       if (!res.ok) throw new Error("Failed update");
-      showSuccess(`Updated to ${newStatus}`);
+      showSuccess(`Updated Sucesssfully`);
       fetchRequests();
     } catch (error) {
       showError("Update failed");
@@ -194,7 +194,7 @@ export default function RequestsManagement() {
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent  align="end">
+      <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuItem
           className="cursor-pointer"
@@ -204,12 +204,18 @@ export default function RequestsManagement() {
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer"
-          onClick={() =>
-            (window.location.href = `mailto:${request.schoolEmail}`)
-          }
+          onSelect={(e) => {
+            e.preventDefault();
+            window.open(
+              `https://mail.google.com/mail/?view=cm&fs=1&to=${request.schoolEmail}`,
+              "_blank"
+            );
+          }}
         >
-          <Mail className="mr-2 h-4 w-4" /> Email School
+          <Mail className="mr-2 h-4 w-4" />
+          Email School
         </DropdownMenuItem>
+
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="cursor-pointer">
           Update Status
@@ -231,6 +237,12 @@ export default function RequestsManagement() {
           onClick={() => handleUpdateStatus(request.id, "TEACHER_DECLINED")}
         >
           <XCircle className="mr-2 h-4 w-4 text-red-500" /> Mark Declined
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => handleUpdateStatus(request.id, "CLOSED")}
+        >
+          <X className="mr-2 h-4 w-4 font-bold" /> Mark Closed
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -490,7 +502,7 @@ export default function RequestsManagement() {
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2">
               <Button
                 className="cursor-pointer"
                 variant="outline"

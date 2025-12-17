@@ -137,6 +137,8 @@ export default function TeacherBrowser() {
           location: t.current_country ?? t.location ?? "Unknown",
           visa: t.visa_status ?? "Unknown",
           bio: t.bio ?? "No bio available.",
+          // Mapped the status from backend
+          status: t.profile_status ?? "ACTIVE",
         });
 
         if (Array.isArray(data)) {
@@ -245,7 +247,7 @@ export default function TeacherBrowser() {
           <TeacherCard
             key={teacher.id}
             data={teacher}
-            subscriptionStatus={subscriptionStatus} // Pass the fetched status
+            subscriptionStatus={subscriptionStatus}
           />
         ))}
       </div>
@@ -269,6 +271,42 @@ function TeacherCard({
 
   // 2. CHECK STATUS: If not 'ACTIVE', restrict access
   const isRestricted = subscriptionStatus !== "ACTIVE";
+
+  // --- DYNAMIC STATUS CONFIGURATION ---
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case "PLACED":
+        return {
+          label: "Already Placed",
+          bg: "bg-blue-50 dark:bg-blue-900/20",
+          border: "border-blue-100 dark:border-blue-900/30",
+          text: "text-blue-700 dark:text-blue-400",
+          dotBg: "bg-blue-500",
+          dotPing: "bg-blue-400",
+        };
+      case "INACTIVE":
+        return {
+          label: "Currently Unavailable",
+          bg: "bg-slate-100 dark:bg-zinc-800",
+          border: "border-slate-200 dark:border-zinc-700",
+          text: "text-slate-500 dark:text-zinc-400",
+          dotBg: "bg-slate-400",
+          dotPing: "hidden", // No ping for inactive
+        };
+      case "ACTIVE":
+      default:
+        return {
+          label: "Available to Hire",
+          bg: "bg-green-50 dark:bg-green-900/20",
+          border: "border-green-100 dark:border-green-900/30",
+          text: "text-green-700 dark:text-green-400",
+          dotBg: "bg-green-500",
+          dotPing: "bg-green-400",
+        };
+    }
+  };
+
+  const statusConfig = getStatusConfig(data.status);
 
   const handleRequestClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -347,14 +385,14 @@ function TeacherCard({
             <Button
               variant="outline"
               onClick={() => setIsRequestOpen(false)}
-              className="border-slate-200 dark:border-white/10"
+              className="border-slate-200 dark:border-white/10 cursor-pointer"
             >
               Close
             </Button>
             <Button
               onClick={confirmRequest}
               disabled={isSubmitting || !message.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
             >
               {isSubmitting ? "Sending..." : "Confirm"}
             </Button>
@@ -368,19 +406,19 @@ function TeacherCard({
 
           <CardHeader className="pb-4 pt-6 px-6 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
             <div className="flex items-start justify-between">
-              <div className="flex gap-4">
+              <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-white to-slate-100 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center border border-slate-200 dark:border-white/10 shadow-sm group-hover:scale-105 transition-transform duration-300">
                   <span className="text-2xl font-bold bg-linear-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {String(data.subject ?? "U").charAt(0)}
                   </span>
                 </div>
                 <div className="space-y-1">
-                  <Badge
+                  {/* <Badge
                     variant="secondary"
                     className="bg-white dark:bg-zinc-950 border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-500 dark:text-zinc-400 px-2 py-0.5"
                   >
                     {data.level}
-                  </Badge>
+                  </Badge> */}
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
                     {data.subject}
                   </h3>
@@ -476,13 +514,23 @@ function TeacherCard({
                       <span>{data.level} Level</span>
                     </DialogDescription>
                   </div>
-                  <div className="self-start flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full border border-green-100 dark:border-green-900/30">
+
+                  {/* DYNAMIC STATUS BADGE */}
+                  <div
+                    className={`self-start flex items-center gap-2 px-3 py-1.5 rounded-full border ${statusConfig.bg} ${statusConfig.border}`}
+                  >
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      <span
+                        className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${statusConfig.dotPing}`}
+                      ></span>
+                      <span
+                        className={`relative inline-flex rounded-full h-2 w-2 ${statusConfig.dotBg}`}
+                      ></span>
                     </span>
-                    <span className="text-xs font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
-                      Available to Hire
+                    <span
+                      className={`text-xs font-semibold whitespace-nowrap ${statusConfig.text}`}
+                    >
+                      {statusConfig.label}
                     </span>
                   </div>
                 </div>

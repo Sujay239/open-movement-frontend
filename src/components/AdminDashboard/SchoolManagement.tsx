@@ -531,7 +531,7 @@ export default function SchoolManagement() {
           )}
 
           <DialogFooter className="px-6 py-4 border-t bg-muted/20 shrink-0">
-            <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
+            <Button variant="outline" className="cursor-pointer" onClick={() => setIsViewModalOpen(false)}>
               Close
             </Button>
           </DialogFooter>

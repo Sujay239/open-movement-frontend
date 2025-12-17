@@ -87,14 +87,16 @@ export const Hero = () => {
             </Button>
           </Link>
 
-          <Button
-            className="w-full md:w-auto cursor-pointer hover:scale-105 transition-transform duration-200"
-            variant="outline"
-            size="lg"
-          >
-            Enter Access Code
-            <Key className="ml-2 w-5 h-5" />
-          </Button>
+          <Link to="/use-access-code">
+            <Button
+              className="w-full md:w-auto cursor-pointer hover:scale-105 transition-transform duration-200"
+              variant="outline"
+              size="lg"
+            >
+              Enter Access Code
+              <Key className="ml-2 w-5 h-5" />
+            </Button>
+          </Link>
         </div>
       </div>
 

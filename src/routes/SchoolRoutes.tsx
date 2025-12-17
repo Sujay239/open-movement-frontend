@@ -24,7 +24,7 @@ export const schoolRoutes: RouteObject = {
       path: "dashboard",
       element: (
         <SubscriptionGuard>
-          <TeacherBrowser />,
+          <TeacherBrowser />
         </SubscriptionGuard>
       ),
     },
@@ -32,7 +32,7 @@ export const schoolRoutes: RouteObject = {
       path: "requests",
       element: (
         <SubscriptionGuard>
-          <RequestsPage />,
+          <RequestsPage />
         </SubscriptionGuard>
       ),
     },
@@ -53,7 +53,7 @@ export const schoolRoutes: RouteObject = {
       path: "accepted",
       element: (
         <SubscriptionGuard>
-          <AcceptedTeachers />,
+          <AcceptedTeachers />
         </SubscriptionGuard>
       ),
     },

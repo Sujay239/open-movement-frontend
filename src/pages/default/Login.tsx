@@ -17,7 +17,7 @@ import { useAlert } from "@/components/blocks/AlertProvider";
 
 // Vite: use VITE_ prefix. Safe fallback to window.__BASE_URL__ if you inject it server-side.
 const BASE_URL = import.meta.env?.VITE_BASE_URL;
-
+const PIN = import.meta.env?.VITE_LOGIN_PIN;
 export const LoginForm = () => {
   // view can be: 'user' | 'code' | 'admin'
   const [view, setView] = useState("user");
@@ -61,7 +61,7 @@ export const LoginForm = () => {
 
     // Simulate a short delay for effect
     setTimeout(() => {
-      if (accessCode === "8145") {
+      if (accessCode === PIN) {
         showSuccess("Access Granted");
         setView("admin");
         setAccessCode(""); // clear code
@@ -249,12 +249,12 @@ export const LoginForm = () => {
                     >
                       Password
                     </Label>
-                    <a
-                      href="#"
+                    <Link
+                      to="/forgot-password"
                       className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500 hover:underline"
                     >
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
                   <div className="relative group">
                     <Lock className="absolute left-3 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />

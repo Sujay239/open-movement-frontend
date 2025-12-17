@@ -54,10 +54,9 @@ import {
   Search,
   X,
   BookOpen,
-  Loader2 // Added for loading state
+  Loader2,
 } from "lucide-react";
 import { useAlert } from "../blocks/AlertProvider";
-// import { toast } from "sonner";
 
 // --- 1. TYPES & INTERFACES ---
 type TeacherStatus = "ACTIVE" | "PLACED" | "INACTIVE";
@@ -83,6 +82,7 @@ interface Teacher {
   preferred_regions: string;
   profile_status: TeacherStatus;
   is_visible_in_school_portal: boolean;
+  bio: string;
 }
 
 const initialFormState: Partial<Teacher> = {
@@ -105,24 +105,26 @@ const initialFormState: Partial<Teacher> = {
   preferred_regions: "",
   profile_status: "ACTIVE",
   is_visible_in_school_portal: true,
+  bio: "",
 };
 
 export default function TeacherManagement() {
   // --- STATE ---
-  const [teachers, setTeachers] = useState<Teacher[]>([]); // No more demo data
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-    const {showError , showSuccess} = useAlert();
+  const { showError, showSuccess } = useAlert();
 
   // Form/Edit States
   const [formData, setFormData] = useState<Partial<Teacher>>(initialFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
- const BASE_URL = import.meta.env?.VITE_BASE_URL;
+
+  const BASE_URL = import.meta.env?.VITE_BASE_URL;
   // --- API URL ---
   const API_URL = `${BASE_URL}/admin/teachers`;
 
@@ -189,56 +191,88 @@ export default function TeacherManagement() {
     if (window.confirm("Are you sure you want to delete this profile?")) {
       try {
         const res = await fetch(`${API_URL}/${id}`, {
-            method: "DELETE",
-            credentials: "include"
+          method: "DELETE",
+          credentials: "include",
         });
 
         if (!res.ok) throw new Error("Failed to delete");
 
         setTeachers((prev) => prev.filter((t) => t.id !== id));
-       showSuccess("Profile deleted");
+        showSuccess("Profile deleted");
       } catch (error) {
         showError("Error deleting profile");
       }
     }
   };
 
+  // --- TOGGLE VISIBILITY API ---
+  const handleToggleVisibility = async (id: string, currentStatus: boolean) => {
+    setTeachers((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, is_visible_in_school_portal: !currentStatus } : t
+      )
+    );
+
+    try {
+      const res = await fetch(`${API_URL}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ is_visible_in_school_portal: !currentStatus }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update visibility");
+    } catch (error) {
+      console.error(error);
+      showError("Failed to update visibility");
+      // Revert change if API fails
+      setTeachers((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, is_visible_in_school_portal: currentStatus } : t
+        )
+      );
+    }
+  };
+
   // --- CREATE / UPDATE API ---
   const handleSaveTeacher = async () => {
     if (!formData.full_name || !formData.email) {
-      showError("Name and Email are required");
+      showError("Fill all required fields");
       return;
     }
 
     try {
-        let res;
-        if (editingId) {
-            // UPDATE EXISTING
-            res = await fetch(`${API_URL}/${editingId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(formData),
-            });
-        } else {
-            // CREATE NEW
-            res = await fetch(API_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(formData),
-            });
-        }
+      let res;
+      if (editingId) {
+        // UPDATE EXISTING
+        res = await fetch(`${API_URL}/${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(formData),
+        });
+      } else {
+        // CREATE NEW
+        res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(formData),
+        });
+      }
 
-        if (!res.ok) throw new Error("Failed to save teacher");
+      if (!res.ok) throw new Error("Failed to save teacher");
 
-        showSuccess(editingId ? "Teacher updated successfully" : "Teacher created successfully");
-        fetchTeachers(); // Refresh list from DB
-        handleCloseModal();
-
+      showSuccess(
+        editingId
+          ? "Teacher updated successfully"
+          : "Teacher created successfully"
+      );
+      fetchTeachers(); // Refresh list from DB
+      handleCloseModal();
     } catch (error) {
-        console.error(error);
-        showError("Error saving teacher profile");
+      console.error(error);
+      showError("Error saving teacher profile");
     }
   };
 
@@ -250,7 +284,7 @@ export default function TeacherManagement() {
 
   // --- 5. RENDER ---
   return (
-    <div className="space-y-6  flex flex-col">
+    <div className="space-y-6 flex flex-col">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -264,7 +298,8 @@ export default function TeacherManagement() {
             <Input
               placeholder="Search name, code, subject..."
               className="pl-8 pr-8"
-              value={searchQuery}
+              // Fix: Ensure value is never undefined
+              value={searchQuery || ""}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
@@ -350,10 +385,16 @@ export default function TeacherManagement() {
                       <Label className="text-xs text-muted-foreground">
                         Visible?
                       </Label>
+                      {/* Updated Mobile Switch */}
                       <Switch
                         checked={teacher.is_visible_in_school_portal}
-                        disabled
-                        className="scale-75 origin-left"
+                        onCheckedChange={() =>
+                          handleToggleVisibility(
+                            teacher.id,
+                            teacher.is_visible_in_school_portal
+                          )
+                        }
+                        className="scale-75 origin-left cursor-pointer"
                       />
                     </div>
 
@@ -442,21 +483,84 @@ export default function TeacherManagement() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {teacher.subjects}
+
+                      {/* --- FIX START: ROBUST SUBJECTS CAPSULES --- */}
+                      <TableCell className="hidden md:table-cell max-w-[300px]">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(() => {
+                            let subList: string[] = [];
+                            const rawSubjects = teacher.subjects;
+
+                            if (rawSubjects) {
+                              // 1. Remove Postgres braces {}
+                              let clean = rawSubjects.replace(/^\{|\}$/g, "");
+
+                              // 2. Fix smashed quotes {"Physics""Math"} -> "Physics","Math"
+                              clean = clean.replace(/"\s*"/g, '","');
+
+                              // 3. Split, trim, remove quotes
+                              subList = clean
+                                .split(",")
+                                .map((s) =>
+                                  s.trim().replace(/^["']|["']$/g, "")
+                                )
+                                .filter((s) => s.length > 0);
+                            }
+
+                            if (subList.length === 0) {
+                              return (
+                                <span className="text-muted-foreground text-xs italic">
+                                  --
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <>
+                                {/* Show first 3 items as Badges */}
+                                {subList.slice(0, 3).map((sub, idx) => (
+                                  <Badge
+                                    key={idx}
+                                    variant="secondary"
+                                    className="px-2 py-0 text-[11px] font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 border-0"
+                                  >
+                                    {sub}
+                                  </Badge>
+                                ))}
+                                {/* Show counter if more than 3 */}
+                                {subList.length > 3 && (
+                                  <span className="text-[11px] text-muted-foreground font-medium self-center px-1">
+                                    +{subList.length - 3}
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
                       </TableCell>
+                      {/* --- FIX END --- */}
+
                       <TableCell className="hidden lg:table-cell">
                         {teacher.current_country}
                       </TableCell>
                       <TableCell className="hidden xl:table-cell">
                         {teacher.years_experience} Yrs
                       </TableCell>
+
+                      {/* --- Updated Desktop Switch --- */}
                       <TableCell className="hidden md:table-cell">
                         <Switch
                           checked={teacher.is_visible_in_school_portal}
-                          disabled
+                          onCheckedChange={() =>
+                            handleToggleVisibility(
+                              teacher.id,
+                              teacher.is_visible_in_school_portal
+                            )
+                          }
+                          className="cursor-pointer"
                         />
                       </TableCell>
+
                       <TableCell>
                         <Badge
                           variant={
@@ -473,6 +577,7 @@ export default function TeacherManagement() {
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
+                              size="sm"
                               className="h-8 w-8 p-0 cursor-pointer"
                             >
                               <MoreHorizontal className="h-4 w-4" />
@@ -540,7 +645,8 @@ export default function TeacherManagement() {
                   </Label>
                   <div className="flex gap-2">
                     <Input
-                      value={formData.teacher_code}
+                      // FIX: Use || "" to prevent null
+                      value={formData.teacher_code || ""}
                       readOnly
                       className="bg-muted font-mono font-bold"
                     />
@@ -591,7 +697,8 @@ export default function TeacherManagement() {
                       Full Name <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      value={formData.full_name}
+                      // FIX: Use || "" to prevent null
+                      value={formData.full_name || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, full_name: e.target.value })
                       }
@@ -604,7 +711,8 @@ export default function TeacherManagement() {
                     </Label>
                     <Input
                       type="email"
-                      value={formData.email}
+                      // FIX: Use || "" to prevent null
+                      value={formData.email || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, email: e.target.value })
                       }
@@ -614,7 +722,8 @@ export default function TeacherManagement() {
                   <div className="space-y-2">
                     <Label>Phone</Label>
                     <Input
-                      value={formData.phone}
+                      // FIX: Use || "" to prevent null
+                      value={formData.phone || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, phone: e.target.value })
                       }
@@ -624,7 +733,8 @@ export default function TeacherManagement() {
                   <div className="space-y-2">
                     <Label>CV / Resume Link</Label>
                     <Input
-                      value={formData.cv_link}
+                      // FIX: Use || "" to prevent null
+                      value={formData.cv_link || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, cv_link: e.target.value })
                       }
@@ -646,7 +756,8 @@ export default function TeacherManagement() {
                   <div className="space-y-2">
                     <Label>Current Job Title</Label>
                     <Input
-                      value={formData.current_job_title}
+                      // FIX: Use || "" to prevent null
+                      value={formData.current_job_title || ""}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -656,30 +767,36 @@ export default function TeacherManagement() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Subjects</Label>
+                    <Label>
+                      Subjects <span className="text-red-500">*</span>
+                    </Label>
                     <Input
-                      value={formData.subjects}
+                      // FIX: Use || "" to prevent null
+                      value={formData.subjects || ""}
                       onChange={(e) =>
                         setFormData({ ...formData, subjects: e.target.value })
                       }
+                      placeholder="e.g. physics,chemistry,biology"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Highest Qualification</Label>
+                    <Label>
+                      Highest Qualification <span className="text-red-500">*</span>
+                    </Label>
                     <Input
-                      value={formData.highest_qualification}
+                      // FIX: Use || "" to prevent null
+                      value={formData.highest_qualification || ""}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          highest_qualification: e.target.value,
-                        })
+                        setFormData({ ...formData, highest_qualification: e.target.value })
                       }
+                      placeholder="e.g. M.Tech software engineering"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Current School Name (Admin Only)</Label>
                     <Input
-                      value={formData.current_school_name}
+                      // FIX: Use || "" to prevent null
+                      value={formData.current_school_name || ""}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -692,7 +809,8 @@ export default function TeacherManagement() {
                     <Label>Years of Experience</Label>
                     <Input
                       type="number"
-                      value={formData.years_experience}
+                      // FIX: Use || 0 to prevent null for numbers
+                      value={formData.years_experience || 0}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -716,7 +834,8 @@ export default function TeacherManagement() {
                   <div className="space-y-2">
                     <Label>Current Country</Label>
                     <Input
-                      value={formData.current_country}
+                      // FIX: Use || "" to prevent null
+                      value={formData.current_country || ""}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -728,7 +847,8 @@ export default function TeacherManagement() {
                   <div className="space-y-2">
                     <Label>Current Region</Label>
                     <Input
-                      value={formData.current_region}
+                      // FIX: Use || "" to prevent null
+                      value={formData.current_region || ""}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -740,7 +860,8 @@ export default function TeacherManagement() {
                   <div className="space-y-2">
                     <Label>Visa Status</Label>
                     <Input
-                      value={formData.visa_status}
+                      // FIX: Use || "" to prevent null
+                      value={formData.visa_status || ""}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -752,7 +873,8 @@ export default function TeacherManagement() {
                   <div className="space-y-2 md:col-span-3">
                     <Label>Notice Period</Label>
                     <Input
-                      value={formData.notice_period}
+                      // FIX: Use || "" to prevent null
+                      value={formData.notice_period || ""}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -804,13 +926,30 @@ export default function TeacherManagement() {
                   <div className="space-y-2">
                     <Label>Preferred Regions</Label>
                     <Input
-                      value={formData.preferred_regions}
+                      // FIX: Use || "" to prevent null
+                      value={formData.preferred_regions || ""}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
                           preferred_regions: e.target.value,
                         })
                       }
+                    />
+                  </div>
+
+                  {/* FIXED BIO FIELD: Now using textarea classes for better multi-line input */}
+                  <div className="space-y-2">
+                    <Label>Teacher Bio</Label>
+                    <textarea
+                      className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={formData.bio || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          bio: e.target.value,
+                        })
+                      }
+                      placeholder="Enter a professional biography..."
                     />
                   </div>
                 </div>
@@ -1007,7 +1146,7 @@ export default function TeacherManagement() {
                       </label>
                       <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded flex items-center text-yellow-800 dark:text-yellow-200 font-medium">
                         <School className="w-4 h-4 mr-2" />{" "}
-                        {selectedTeacher.current_school_name || "N/A"}
+                        {selectedTeacher.current_school_name}
                       </div>
                     </div>
                     <div>
@@ -1083,12 +1222,22 @@ export default function TeacherManagement() {
                     </div>
                   </div>
                 </div>
+
+                {/* 5. BIO SECTION (ADDED) */}
+                <div className="space-y-4 pt-4">
+                  <h4 className="font-semibold text-sm uppercase text-muted-foreground tracking-wider border-b pb-2">
+                    About Teacher
+                  </h4>
+                  <div className="p-4 bg-muted/50 rounded-lg text-sm leading-relaxed whitespace-pre-wrap">
+                    {selectedTeacher.bio || "No biography provided."}
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
           <DialogFooter className="px-6 py-4 border-t bg-muted/20 shrink-0">
-            <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
+            <Button variant="outline" className="cursor-pointer" onClick={() => setIsViewModalOpen(false)}>
               Close
             </Button>
             <Button

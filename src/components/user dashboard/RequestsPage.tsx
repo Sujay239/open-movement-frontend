@@ -95,6 +95,7 @@ const demoRequests = [
 
 // type RequestItem = (typeof demoRequests)[number];
 const BASE_URL = import.meta.env?.VITE_BASE_URL;
+const ADMIN_EMAIL = import.meta.env?.VITE_ADMIN_EMAIL;
 
 export const RequestsPage: React.FC = () => {
   const container = useRef<HTMLDivElement>(null);
@@ -111,7 +112,7 @@ export const RequestsPage: React.FC = () => {
   const [requestToArchive, setRequestToArchive] = useState<any | null>(null);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
-  const {showError,showSuccess} = useAlert();
+  const { showError, showSuccess } = useAlert();
 
   // Animation
   useGSAP(
@@ -184,21 +185,25 @@ export const RequestsPage: React.FC = () => {
     setIsDetailsOpen(true);
   };
 
-  // --- CONTACT ADMIN HANDLER ---
-const handleContactAdmin = () => {
-  const email = import.meta.env?.ADMIN_EMAIL;
-  const subject = "Inquiry regarding Teacher Request";
-  const body =
-    "Hello Admin,\n\nI have a question regarding a teacher request.\n\nThanks.";
 
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
-    email
-  )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const handleContactAdmin = () => {
+    // Guard clause: handle case where email is missing
+    if (!ADMIN_EMAIL) {
+      alert("Admin email is not configured.");
+      return;
+    }
 
-  window.open(gmailUrl, "_blank"); // open Gmail in new tab
-};
+    const subject = "Inquiry regarding Teacher Request";
+    const body =
+      "Hello Admin,\n\nI have a question regarding a teacher request.\n\nThanks.";
 
+    // 2. The 'to' parameter here does the pre-filling
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+      ADMIN_EMAIL
+    )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
+    window.open(gmailUrl, "_blank");
+  };
 
 
 
@@ -218,7 +223,9 @@ const handleContactAdmin = () => {
       setRequests((prev) => prev.filter((r) => r.id !== requestToArchive.id));
 
       showSuccess(
-        `Request ${requestToArchive.teacher_code || "ID"} archived successfully.`
+        `Request ${
+          requestToArchive.teacher_code || "ID"
+        } archived successfully.`
       );
       setIsArchiveOpen(false);
     } catch (error) {
@@ -266,9 +273,7 @@ const handleContactAdmin = () => {
       const res = await fetch(API_ENDPOINT, { credentials: "include" });
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
       const data = await res.json();
-      setRequests(
-        Array.isArray(data) ? data : (data?.requests ?? demoRequests)
-      );
+      setRequests(Array.isArray(data) ? data : data?.requests ?? demoRequests);
     } catch (err: any) {
       console.error(err);
       showError(err.message || "Failed to refresh requests.");
@@ -321,28 +326,27 @@ const handleContactAdmin = () => {
     window.URL.revokeObjectURL(url);
   };
 
-
   async function handleArchieve(req: any): Promise<void> {
-    try{
+    try {
       const res = await fetch(
-        `${BASE_URL}/requests/teachers/${req.id}/${req.teacher_id}/${req.school_id}`, {
-          method : "DELETE",
-          credentials : "include"
+        `${BASE_URL}/requests/teachers/${req.id}/${req.teacher_id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
         }
       );
       const data = await res.json();
-      if(res.ok){
+      if (res.ok) {
         showSuccess(data.message);
         refresh();
-      }else{
+      } else {
         showError(data.error);
       }
-    }catch(err){
+    } catch (err) {
       showError("Something went wrong");
       console.log(err);
     }
   }
-
 
   const formatLocalDate = (value?: string | null) => {
     if (!value) return "";
@@ -350,7 +354,6 @@ const handleContactAdmin = () => {
     if (isNaN(d.getTime())) return "";
     return d.toLocaleDateString(); // local time, safe
   };
-
 
   return (
     <div ref={container} className="space-y-8 max-w-6xl mx-auto pb-20">
@@ -389,7 +392,12 @@ const handleContactAdmin = () => {
               >
                 Refresh
               </Button>
-              <Button onClick={handleDownloadReport} variant="outline" size="sm" className="cursor-pointer hidden sm:flex">
+              <Button
+                onClick={handleDownloadReport}
+                variant="outline"
+                size="sm"
+                className="cursor-pointer hidden sm:flex"
+              >
                 <FileText className="w-4 h-4 mr-2" /> Download Report
               </Button>
             </div>
@@ -404,7 +412,6 @@ const handleContactAdmin = () => {
                   Request ID
                 </TableHead>
                 <TableHead className="w-[120px]">Teacher Code</TableHead>
-                <TableHead className="hidden md:table-cell">Subject</TableHead>
 
                 <TableHead className="w-[100px] sm:w-auto">Date Sent</TableHead>
                 <TableHead className="hidden sm:table-cell">Status</TableHead>
@@ -423,9 +430,7 @@ const handleContactAdmin = () => {
                   <TableCell className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
                     {req.teacher_code}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {req.subjects?.[0] || ""}
-                  </TableCell>
+
                   <TableCell className="text-muted-foreground text-xs sm:text-sm">
                     {formatLocalDate(req.requested_at)}
                   </TableCell>
@@ -484,6 +489,7 @@ const handleContactAdmin = () => {
 
                           {/* Updated Archive Trigger */}
                           <DropdownMenuItem
+                            disabled={req.status === "CLOSED"}
                             onClick={() => handleArchieve(req)}
                             className="text-red-600 focus:text-red-600 cursor-pointer"
                           >
@@ -554,19 +560,16 @@ const handleContactAdmin = () => {
                     {selectedRequest.requested_at}
                   </p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase">
-                    Subject
-                  </p>
-                  <p className="font-semibold">{selectedRequest.subjects[0]}</p>
-                </div>
+
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase">
                     Status
                   </p>
                   <Badge
                     variant="outline"
-                    className={`${getStatusColor(selectedRequest.status)} w-fit`}
+                    className={`${getStatusColor(
+                      selectedRequest.status
+                    )} w-fit`}
                   >
                     {selectedRequest.status}
                   </Badge>

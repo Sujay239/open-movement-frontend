@@ -118,7 +118,7 @@ export default function SubscriptionGuard({
 
         <CardFooter className="flex flex-col gap-3 p-6 bg-slate-50 dark:bg-zinc-900/30 border-t border-slate-100 dark:border-zinc-800">
           <Button
-            className="w-full h-11 text-base bg-blue-600 hover:bg-blue-700 shadow-md transition-all hover:scale-[1.02]"
+            className="w-full h-11 text-base bg-blue-600 hover:bg-blue-700 shadow-md transition-all hover:scale-[1.02] cursor-pointer"
             onClick={() => navigate("/school/subscription")}
           >
             <CreditCard className="mr-2 h-4 w-4" />
@@ -138,7 +138,7 @@ export default function SubscriptionGuard({
 
           <Button
             variant="outline"
-            className="w-full h-11 border-slate-300 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800"
+            className="w-full h-11 border-slate-300 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 cursor-pointer"
             onClick={() => navigate("/school/access-code")}
           >
             <Key className="mr-2 h-4 w-4" /> Enter Access Code

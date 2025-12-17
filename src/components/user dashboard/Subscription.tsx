@@ -335,7 +335,11 @@ export const SubscriptionPage: React.FC = () => {
                     : "Time Remaining"}
                 </span>
                 <span
-                  className={`font-bold font-mono ${status === "NO_SUBSCRIPTION" ? "text-slate-400" : "text-slate-700 dark:text-slate-300"}`}
+                  className={`font-bold font-mono ${
+                    status === "NO_SUBSCRIPTION"
+                      ? "text-slate-400"
+                      : "text-slate-700 dark:text-slate-300"
+                  }`}
                 >
                   {loading ? "…" : timeRemainingLabel}
                 </span>
@@ -363,8 +367,8 @@ export const SubscriptionPage: React.FC = () => {
                   {loading
                     ? "Checking access..."
                     : status === "ACTIVE"
-                      ? "Your subscription is active — full access granted."
-                      : "You are viewing the limited free version. Upgrade to a premium plan to unlock full features."}
+                    ? "Your subscription is active — full access granted."
+                    : "You are viewing the limited free version. Upgrade to a premium plan to unlock full features."}
                 </p>
               </div>
             </div>
@@ -378,7 +382,9 @@ export const SubscriptionPage: React.FC = () => {
                   variant="outline"
                   className="text-red-500 border-slate-200 dark:border-white/10 flex-1 cursor-pointer hover:bg-red-600 hover:text-white transition-all duration-300"
                   onClick={onCancelClick}
-                  disabled={cancelling}
+                  disabled={
+                    cancelling ||  (status !== "TRIAL" && status !== "ACTIVE")
+                  }
                 >
                   {cancelling ? "Processing..." : cancelButtonLabel}
                 </Button>
@@ -389,7 +395,9 @@ export const SubscriptionPage: React.FC = () => {
                   const el = document.getElementById("pricing");
                   if (el) el.scrollIntoView({ behavior: "smooth" });
                 }}
-                className={`flex-1 cursor-pointer hover:bg-green-400 hover:scale-105 transition-all duration-300 ${!hasActiveSubscription ? "w-full" : ""}`}
+                className={`flex-1 cursor-pointer hover:bg-green-400 hover:scale-105 transition-all duration-300 ${
+                  !hasActiveSubscription ? "w-full" : ""
+                }`}
               >
                 {status === "NO_SUBSCRIPTION"
                   ? "Get Full Access"

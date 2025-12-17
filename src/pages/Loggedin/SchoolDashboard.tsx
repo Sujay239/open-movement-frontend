@@ -248,8 +248,10 @@ export default function SchoolLayout() {
                 </p>
               </div>
               <Avatar className="border-2 border-white dark:border-zinc-800 shadow-sm cursor-pointer">
-                <AvatarImage src="https://github.com/shadcn.png" />
-                <AvatarFallback>PS</AvatarFallback>
+                <Link to="/school/settings">
+                  <AvatarImage src="https://github.com/shadcn.png" />
+                  <AvatarFallback>PS</AvatarFallback>
+                </Link>
               </Avatar>
             </div>
           </div>
@@ -365,7 +367,6 @@ function SidebarContent({
   const styles = getCardStyles(planType);
   const Icon = styles.icon;
 
-  // --- TIME FORMAT HELPER (RESTORED) ---
   const formatRemaining = (ms?: number | null) => {
     if (ms === undefined || ms === null) return "—";
     if (ms <= 0) return "Expired";
@@ -377,7 +378,6 @@ function SidebarContent({
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
 
-    // Format: Xd HH:MM:SS or HH:MM:SS
     const pad = (n: number) => String(n).padStart(2, "0");
     if (days > 0)
       return `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
@@ -397,42 +397,52 @@ function SidebarContent({
     window.location.href = "/";
   }
 
+  // --- LOGIC: Mobile vs Desktop Nav Link ---
   const renderNavLink = (item: any) => {
     const isActive =
       item.href === "/school"
         ? location.pathname === "/school"
         : location.pathname.startsWith(item.href);
 
+    // 1. Create the shared Link component
+    const LinkComponent = (
+      <Link
+        to={item.href}
+        className={`sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
+          ${
+            isActive
+              ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+              : "text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
+          }
+          ${!isExpanded && !isMobile ? "justify-center px-2" : ""}
+        `}
+      >
+        <item.icon
+          className={`w-5 h-5 shrink-0 transition-colors ${
+            isActive
+              ? "text-white"
+              : "text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400"
+          }`}
+        />
+        {(isExpanded || isMobile) && (
+          <span className="font-medium whitespace-nowrap overflow-hidden sidebar-text">
+            {item.label}
+          </span>
+        )}
+      </Link>
+    );
+
+    // 2. Mobile: Return Link directly (SheetClose handles the rest in the parent map)
+    if (isMobile) {
+      return LinkComponent;
+    }
+
+    // 3. Desktop: Wrap in Tooltip
     return (
       <TooltipProvider delayDuration={0}>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              to={item.href}
-              className={`sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
-              ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                  : "text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-              }
-              ${!isExpanded ? "justify-center px-2" : ""}
-            `}
-            >
-              <item.icon
-                className={`w-5 h-5 shrink-0 transition-colors ${
-                  isActive
-                    ? "text-white"
-                    : "text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400"
-                }`}
-              />
-              {isExpanded && (
-                <span className="font-medium whitespace-nowrap overflow-hidden sidebar-text">
-                  {item.label}
-                </span>
-              )}
-            </Link>
-          </TooltipTrigger>
-          {!isExpanded && !isMobile && (
+          <TooltipTrigger asChild>{LinkComponent}</TooltipTrigger>
+          {!isExpanded && (
             <TooltipContent side="right" className="font-semibold ml-2">
               {item.label}
             </TooltipContent>
@@ -460,7 +470,7 @@ function SidebarContent({
             </span>
           )}
 
-          {/* SIDEBAR TOGGLE BUTTON */}
+          {/* SIDEBAR TOGGLE BUTTON (Hidden on Mobile) */}
           {!isMobile && onToggle && (
             <Button
               variant="ghost"
@@ -484,10 +494,12 @@ function SidebarContent({
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden">
         {navItems.map((item) =>
           isMobile ? (
+            // Mobile: Use SheetClose to close sidebar on click
             <SheetClose asChild key={item.href}>
               {renderNavLink(item)}
             </SheetClose>
           ) : (
+            // Desktop: Standard Fragment
             <React.Fragment key={item.href}>
               {renderNavLink(item)}
             </React.Fragment>
@@ -495,10 +507,9 @@ function SidebarContent({
         )}
       </nav>
 
-      {/* 3. Subscription Widget (Hidden if Collapsed) */}
+      {/* 3. Subscription Widget (Hidden if Collapsed, Visible if Mobile) */}
       <div className="p-4 mt-auto">
-        {isExpanded ? (
-          // FULL WIDGET WITH TIMER RESTORED
+        {isExpanded || isMobile ? (
           <div className={`rounded-2xl p-5 ${styles.container} sidebar-text`}>
             <div className={`absolute inset-0 ${styles.bgEffect}`} />
             <div className="relative z-10">
@@ -547,7 +558,7 @@ function SidebarContent({
               {!styles.upgradeDisabled && (
                 <Button
                   size="sm"
-                  className={`w-full h-9 text-xs font-bold shadow-sm ${styles.button}`}
+                  className={`w-full h-9 text-xs font-bold shadow-sm ${styles.button} cursor-pointer hover:bg-green-400 hover:scale-105 transition-transform `}
                   onClick={() =>
                     (window.location.href = "/school/subscription")
                   }
@@ -579,26 +590,38 @@ function SidebarContent({
         )}
       </div>
 
-      <div className="p-4 border-t border-slate-100 dark:border-white/5 flex flex-col gap-2">
-        <TooltipProvider delayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                className={`w-full ${
-                  isExpanded ? "justify-start" : "justify-center px-0"
-                } text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300`}
-                onClick={handleLogout}
-              >
-                <LogOut className={`w-4 h-4 ${isExpanded ? "mr-2" : ""}`} />
-                {isExpanded && <span className="sidebar-text">Log Out</span>}
-              </Button>
-            </TooltipTrigger>
-            {!isExpanded && (
-              <TooltipContent side="right">Log Out</TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
+      <div className="p-4 border-t border-slate-100 dark:border-white/5 flex flex-col gap-2 ">
+        {/* Log Out Button */}
+        {isMobile ? (
+          <Button
+            variant="ghost"
+            className={`w-[90%] cursor-pointer justify-start text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300`}
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            <span className="sidebar-text">Log Out</span>
+          </Button>
+        ) : (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`w-[90%] cursor-pointer ${
+                    isExpanded ? "justify-start" : "justify-center px-0"
+                  } text-red-500 hover:bg-red-500 hover:text-white transition-all duration-300 hover:scale-110`}
+                  onClick={handleLogout}
+                >
+                  <LogOut className={`w-4 h-4 ${isExpanded ? "mr-2" : ""}`} />
+                  {isExpanded && <span className="sidebar-text">Log Out</span>}
+                </Button>
+              </TooltipTrigger>
+              {!isExpanded && (
+                <TooltipContent side="right">Log Out</TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
     </div>
   );

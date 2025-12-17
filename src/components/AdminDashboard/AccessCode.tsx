@@ -53,6 +53,7 @@ interface AccessCode {
   code: string;
   status: CodeStatus;
   school_name?: string; // Derived from joined school table
+  email? :string;
   created_at: string;
   first_used_at?: string;
   expires_at?: string;
@@ -205,7 +206,8 @@ export default function AccessCodes() {
     return (
       c.code.toLowerCase().includes(query) ||
       (c.school_name?.toLowerCase() || "").includes(query) ||
-      (c.status?.toLowerCase() || "").includes(query)
+      (c.status?.toLowerCase() || "").includes(query) ||
+      (c.email?.toLocaleLowerCase() || "").includes(query)
     );
   });
 
@@ -415,16 +417,12 @@ export default function AccessCodes() {
                       </TableCell>
                       <TableCell>{getStatusBadge(item.status)}</TableCell>
                       <TableCell>
-                        {item.school_name ? (
-                          <div className="flex items-center">
-                            <School className="mr-2 h-3 w-3 text-muted-foreground" />
-                            {item.school_name}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-xs italic">
-                            -
+                       <div className="flex flex-col">
+                          <span className="font-medium">{item.school_name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {item.email}
                           </span>
-                        )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {formatDate(item.created_at)}

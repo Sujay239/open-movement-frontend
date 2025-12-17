@@ -78,7 +78,7 @@ export const SupportPage = () => {
       });
 
       if (!res.ok) throw new Error("Failed to send support email");
-
+      setMessage("");
       showSuccess("Your request has been sent successfully!");
     } catch (err) {
       console.error(err);

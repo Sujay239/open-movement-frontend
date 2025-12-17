@@ -34,7 +34,7 @@ type ApiRow = {
   status?: string;
   school_message?: string;
   admin_notes?: string;
-  subjects?: string[] | null;
+  subjects?: string[] | string | null;
   teacher?: {
     full_name?: string;
     email?: string;
@@ -51,8 +51,8 @@ type ApiRow = {
     years_experience?: string | number;
     preferred_regions?: any;
     profile_status?: string;
+    subjects?: string[] | string;
   } | null;
-  // plus any other fields...
 };
 
 type CardData = {
@@ -77,7 +77,7 @@ export const AcceptedTeachers: React.FC = () => {
   const [teachers, setTeachers] = useState<CardData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const {showError,showSuccess} = useAlert();
+  const { showError, showSuccess } = useAlert();
 
   useGSAP(
     () => {
@@ -120,7 +120,7 @@ export const AcceptedTeachers: React.FC = () => {
 
         if (!mounted) return;
 
-        // Filter accepted statuses (handle both API formats)
+        // Filter accepted statuses
         const acceptedRows = (Array.isArray(data) ? data : []).filter(
           (r) =>
             r?.status === "TEACHER_ACCEPTED" ||
@@ -129,26 +129,39 @@ export const AcceptedTeachers: React.FC = () => {
         );
 
         // Map to card data
-        const mapped: CardData[] = acceptedRows.map((r : any) => {
+        const mapped: CardData[] = acceptedRows.map((r: any) => {
           const t = r.teacher ?? ({} as ApiRow["teacher"]);
-          const subjects =
-            Array.isArray(r.subjects) && r.subjects.length
-              ? r.subjects
-              : Array.isArray(t?.subjects)
-                ? (t!.subjects as string[])
-                : ((r.subjects as string[]) ?? []);
 
-          // small avatar color chooser based on first subject (deterministic)
+          // --- FIX START: Handle String Subjects ---
+          const rawSubjects = r.subjects || t?.subjects;
+          let subjects: string[] = [];
+
+          if (Array.isArray(rawSubjects)) {
+            subjects = rawSubjects;
+          } else if (typeof rawSubjects === "string") {
+            // Handle: "Maths, Science" OR "{Maths,Science}" OR "'Maths','Science'"
+            subjects = rawSubjects
+              .replace(/^\{|\}$/g, "") // Remove Postgres braces
+              .split(",") // Split by comma
+              .map((s: string) => s.trim().replace(/^['"]|['"]$/g, "")) // Remove quotes/spaces
+              .filter((s: string) => s.length > 0);
+          }
+          // --- FIX END ---
+
+          // small avatar color chooser based on first subject
           const colorSeed =
             (subjects[0] || t?.full_name || "").charCodeAt(0 || 0) % 3;
           const avatarColor =
             colorSeed === 0
               ? "from-emerald-500 to-teal-500"
               : colorSeed === 1
-                ? "from-blue-500 to-indigo-500"
-                : "from-pink-500 to-rose-500";
+              ? "from-blue-500 to-indigo-500"
+              : "from-pink-500 to-rose-500";
 
-                const country =  t.current_region + ", "+ t.current_country ;
+          const country =
+            (t.current_region ? t.current_region + ", " : "") +
+            (t.current_country || "");
+
           return {
             id: r.teacher_code,
             fullName: t.full_name ?? `${t?.full_name ?? "Unknown Teacher"}`,
@@ -157,7 +170,7 @@ export const AcceptedTeachers: React.FC = () => {
             currentJobTitle: t.current_job_title ?? "—",
             subjects: subjects,
             highestQualification: t.highest_qualification ?? "—",
-            currentRegion:  country ?? "—",
+            currentRegion: country || "—",
             noticePeriod: t.notice_period ?? "—",
             willMoveSem1: Boolean(t.will_move_sem1),
             willMoveSem2: Boolean(t.will_move_sem2),
@@ -190,7 +203,6 @@ export const AcceptedTeachers: React.FC = () => {
   const handleCopyEmail = async (email: string) => {
     try {
       await navigator.clipboard.writeText(email);
-      // lightweight feedback - replace with your toast if available
       showSuccess("Email copied to clipboard");
     } catch {
       showError("Failed to copy email");
@@ -216,7 +228,6 @@ export const AcceptedTeachers: React.FC = () => {
 
   return (
     <div ref={container} className="space-y-8 max-w-7xl mx-auto pb-20">
-      {/* Page Header */}
       <div className="flex flex-col gap-2 border-b border-slate-200 dark:border-white/10 pb-6">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
           Accepted Requests
@@ -237,14 +248,12 @@ export const AcceptedTeachers: React.FC = () => {
       {loading && <div className="text-sm text-slate-500">Loading…</div>}
       {error && <div className="text-sm text-red-600">Error: {error}</div>}
 
-      {/* Grid of Unlocked Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {teachers.map((teacher) => (
           <Card
             key={teacher.id}
             className="accepted-card group relative overflow-hidden bg-white dark:bg-zinc-900/60 border border-slate-200 dark:border-white/10 backdrop-blur-sm shadow-sm hover:shadow-xl hover:border-green-500/30 transition-all duration-300 flex flex-col"
           >
-            {/* Top Accent Line */}
             <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-emerald-500 to-teal-500" />
 
             <CardHeader className="pb-4 pt-6 px-6 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
@@ -286,7 +295,6 @@ export const AcceptedTeachers: React.FC = () => {
             </CardHeader>
 
             <CardContent className="p-6 space-y-6 grow">
-              {/* 1. Core Info Grid */}
               <div className="grid grid-cols-2 gap-4">
                 <DetailRow
                   icon={<Mail className="text-blue-500" />}
@@ -311,7 +319,6 @@ export const AcceptedTeachers: React.FC = () => {
                 />
               </div>
 
-              {/* 2. Availability & Notice */}
               <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-4 border border-slate-100 dark:border-white/5 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-slate-500 dark:text-zinc-400 flex items-center gap-2">
@@ -353,13 +360,12 @@ export const AcceptedTeachers: React.FC = () => {
                 </div>
               </div>
 
-              {/* 3. Subjects Tags */}
               <div className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Teaching Subjects
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {(teacher.subjects && teacher.subjects.length
+                  {(teacher.subjects && teacher.subjects.length > 0
                     ? teacher.subjects
                     : ["Not specified"]
                   ).map((sub) => (
@@ -399,7 +405,6 @@ export const AcceptedTeachers: React.FC = () => {
   );
 };
 
-/* Helper for data rows */
 function DetailRow({
   icon,
   label,

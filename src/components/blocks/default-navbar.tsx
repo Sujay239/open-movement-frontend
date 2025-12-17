@@ -225,7 +225,7 @@ export default function DefaultNavbar({ routes }: DefaultNavbarProps) {
             size="sm"
           >
             <Button onClick={handleLoginRequest} className="cursor-pointer">
-              Log In
+              <Link to='/login'>Log In</Link>
               <LogIn className=" w-5 h-5 cursor-pointer" />
             </Button>
           </Button>
@@ -235,7 +235,7 @@ export default function DefaultNavbar({ routes }: DefaultNavbarProps) {
             size="sm"
             variant="outline"
           >
-            <a href="#">Enter Access Code</a>
+            <Link to="/use-access-code">Enter Access Code</Link>
           </Button>
         </div>
       </div>

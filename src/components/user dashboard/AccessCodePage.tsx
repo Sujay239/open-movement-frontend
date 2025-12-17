@@ -132,7 +132,7 @@ export default function AccessCodePage() {
             <CardFooter>
               <Button
                 type="submit"
-                className="w-full mt-3 h-11 text-base font-semibold shadow-lg shadow-blue-500/20"
+                className="w-full mt-4 h-11 text-base font-semibold shadow-lg shadow-blue-500/20 cursor-pointer hover:bg-green-400 hover:scale-105 transition-all duration-300"
                 disabled={isLoading || !code || success}
               >
                 {isLoading ? (

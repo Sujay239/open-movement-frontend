@@ -15,6 +15,7 @@ import {
   ChevronRight,
   PanelsTopLeft,
   User2,
+  User,
 } from "lucide-react";
 
 // 👇 Update this path to where your ModeToggle is located
@@ -28,6 +29,7 @@ const sidebarItems = [
   { title: "Access Codes", href: "/admin/access-codes", icon: Key },
   { title: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { title: "Add Admin", href: "/admin/new", icon: User2 },
+  { title: "Manage Admins", href: "/admin/manage", icon: User },
 ];
 
 const BASE_URL = import.meta.env?.VITE_BASE_URL;
@@ -166,7 +168,7 @@ export function AdminSidebar({
             variant="ghost"
             size={isCollapsed ? "icon" : "default"}
             className={cn(
-              "text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-colors",
+              "text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-colors cursor-pointer",
               isCollapsed ? "w-full justify-center" : "flex-1 justify-start"
             )}
             onClick={handleLogout}

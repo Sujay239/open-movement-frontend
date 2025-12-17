@@ -13,6 +13,8 @@ import PricingSection from "@/components/ui/PricingSection";
 import { schoolRoutes } from "./SchoolRoutes";
 import { adminRoutes } from "./AdminRoutes";
 import Unauthorized from "@/pages/default/Unauthorized";
+import DefaultAccessCode from "@/pages/default/DefaultAcessCode";
+import Password from "@/pages/default/ForgotPassword";
 
 
 /**
@@ -67,6 +69,16 @@ const unauthorized : RouteObject = {
 }
 
 
+const useAccessCode : RouteObject = {
+  path : '/use-access-code',
+  element : <DefaultAccessCode />
+}
+
+const ForgotPassword: RouteObject = {
+  path: "/forgot-password",
+  element: <Password />,
+};
+
 // If you have other top-level AppRoute areas (admin, teacher, etc.), convert them with generateRouterConfig
 // const otherRoutes = generateRouterConfig(otherAppRoutes); // returns RouteObject[]
 // const routerConfig = [publicRoute, ...otherRoutes];
@@ -78,7 +90,9 @@ const routerConfig: RouteObject[] = [
   pricingRoute,
   schoolRoutes,
   adminRoutes,
-  unauthorized
+  unauthorized,
+  useAccessCode,
+  ForgotPassword,
 ];
 
 export const appRouter = createBrowserRouter(routerConfig);

@@ -247,7 +247,7 @@ export const SettingsPage: React.FC = () => {
         newPassword,
       };
 
-      const res = await fetch(`${BASE_URL}/auth/change-password`, {
+      const res = await fetch(`${BASE_URL}/auth/update-password`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -258,14 +258,14 @@ export const SettingsPage: React.FC = () => {
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Change password failed: ${res.status} ${text}`);
+        const text = await res.json().catch(() => "");
+        showError(text.error);
+        return;
       }
 
       const data = await res.json().catch(() => ({}));
       showSuccess(data?.message ?? "Password updated successfully");
 
-      // clear password fields
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
@@ -417,12 +417,13 @@ export const SettingsPage: React.FC = () => {
           <CardContent className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Admin Email</Label>
+                <Label htmlFor="email">School <p className="max-sm:hidden">Admin</p> Email<span className="text-[10px]">(read only)</span></Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
+                    disabled
                     value={formData.email}
                     onChange={handleInputChange}
                     className="pl-9 bg-slate-50 dark:bg-zinc-950/50"
@@ -501,7 +502,7 @@ export const SettingsPage: React.FC = () => {
                     id="current-pass"
                     type="password"
                     placeholder="••••••••"
-                    value={""}
+                    value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     className="pl-9 bg-slate-50 dark:bg-zinc-950/50"
                   />
